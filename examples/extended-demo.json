@@ -1,0 +1,182 @@
+{
+  "url": "file:./extended-demo.html",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "steps": [
+    {
+      "action": "focus",
+      "selector": "#projects h1",
+      "duration": 1.5
+    },
+    {
+      "action": "click",
+      "selector": "#filter"
+    },
+    {
+      "action": "click",
+      "selector": "#filter-active"
+    },
+    {
+      "action": "type",
+      "selector": "#search",
+      "text": "Website"
+    },
+    {
+      "action": "wait",
+      "duration": 3.5
+    },
+    {
+      "action": "press",
+      "key": "Escape"
+    },
+    {
+      "action": "click",
+      "selector": "#filter"
+    },
+    {
+      "action": "click",
+      "selector": "#filter-all"
+    },
+    {
+      "action": "click",
+      "selector": "#edit"
+    },
+    {
+      "action": "type",
+      "selector": "#title",
+      "text": "Website — experiência 2026"
+    },
+    {
+      "action": "type",
+      "selector": "#description",
+      "text": "Simplificar a navegação e preparar uma experiência clara para novos clientes."
+    },
+    {
+      "action": "click",
+      "selector": "#owner"
+    },
+    {
+      "action": "click",
+      "selector": "#owner-julia"
+    },
+    {
+      "action": "click",
+      "selector": "#priority"
+    },
+    {
+      "action": "click",
+      "selector": "#save",
+      "expect": "#success"
+    },
+    {
+      "action": "focus",
+      "selector": "#project-name",
+      "duration": 1.8
+    },
+    {
+      "action": "wait",
+      "duration": 3
+    },
+    {
+      "action": "scroll",
+      "y": 590,
+      "duration": 2.2
+    },
+    {
+      "action": "focus",
+      "selector": "#review-task",
+      "duration": 1.5
+    },
+    {
+      "action": "click",
+      "selector": "#review-check"
+    },
+    {
+      "action": "click",
+      "selector": "#add-note"
+    },
+    {
+      "action": "type",
+      "selector": "#note",
+      "text": "Protótipo revisado. Próximo passo: validar o formulário e preparar a apresentação."
+    },
+    {
+      "action": "click",
+      "selector": "#save-note",
+      "expect": "#saved-note"
+    },
+    {
+      "action": "focus",
+      "selector": "#saved-note",
+      "duration": 1.8
+    },
+    {
+      "action": "scroll",
+      "y": 570,
+      "duration": 2.2
+    },
+    {
+      "action": "focus",
+      "selector": "#metrics .summary",
+      "duration": 2
+    },
+    {
+      "action": "click",
+      "selector": "#refresh",
+      "expect": "#metrics-ready"
+    },
+    {
+      "action": "wait",
+      "duration": 2.5
+    },
+    {
+      "action": "focus",
+      "selector": "#chart",
+      "duration": 2
+    },
+    {
+      "action": "scroll",
+      "y": -1350,
+      "duration": 2.8
+    },
+    {
+      "action": "click",
+      "selector": "#reports"
+    },
+    {
+      "action": "click",
+      "selector": "#compare",
+      "expect": "#comparison-tag"
+    },
+    {
+      "action": "focus",
+      "selector": "#report-table",
+      "duration": 2.5
+    },
+    {
+      "action": "click",
+      "selector": "#generate",
+      "expect": "#summary-ready"
+    },
+    {
+      "action": "wait",
+      "duration": 3.5
+    },
+    {
+      "action": "focus",
+      "selector": "#summary-ready",
+      "duration": 2
+    },
+    {
+      "action": "click",
+      "selector": "#back"
+    },
+    {
+      "action": "focus",
+      "selector": "#project-name",
+      "duration": 2
+    }
+  ]
+}

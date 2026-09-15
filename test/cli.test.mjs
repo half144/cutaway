@@ -1,0 +1,34 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { fileURLToPath } from 'node:url';
+import { parseCliArgs } from '../src/cli/options.mjs';
+
+const run = promisify(execFile);
+const cli = fileURLToPath(new URL('../skills/agent-screen/scripts/run.mjs', import.meta.url));
+const plan = fileURLToPath(new URL('../examples/demo.json', import.meta.url));
+
+test('doctor takes no positional input; validate requires a plan', () => {
+  assert.equal(parseCliArgs(['doctor']).command, 'doctor');
+  assert.throws(() => parseCliArgs(['doctor', 'extra']));
+  assert.throws(() => parseCliArgs(['validate']));
+});
+
+test('skill runner validates from a different project without FFmpeg', async () => {
+  const { stdout } = await run(process.execPath, [cli, 'validate', plan], {
+    cwd: '/tmp', env: { ...process.env, PATH: '' },
+  });
+  assert.equal(JSON.parse(stdout).steps, 4);
+});
+
+test('doctor reports missing FFmpeg with a nonzero exit status', async () => {
+  await assert.rejects(run(process.execPath, [cli, 'doctor'], {
+    env: { ...process.env, PATH: '' },
+  }), error => {
+    const report = JSON.parse(error.stdout);
+    assert.equal(report.ready, false);
+    assert.equal(report.checks.find(check => check.name === 'ffmpeg').ok, false);
+    return true;
+  });
+});

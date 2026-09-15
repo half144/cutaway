@@ -1,0 +1,151 @@
+const idleThreshold = 2.6;
+const preservedEdge = 0.55;
+
+function pacedIdleDuration(duration) {
+  if (duration <= idleThreshold) return duration;
+  const minimum = preservedEdge * 2 + 0.45 + (duration - preservedEdge * 2 - 0.45) / 4;
+  return Math.max(minimum, idleThreshold + Math.log1p(duration - idleThreshold) * 0.18);
+}
+
+function makeIdleSegment(start, end, kind) {
+  const duration = end - start;
+  if (!Number.isFinite(duration) || duration <= idleThreshold) return null;
+  return { start, end, duration: pacedIdleDuration(duration), kind };
+}
+
+function removeOverlaps(segments) {
+  const accepted = [];
+  for (const segment of segments.sort((a, b) => a.start - b.start)) {
+    const previous = accepted.at(-1);
+    if (!previous || segment.start >= previous.end) accepted.push(segment);
+  }
+  return accepted;
+}
+
+function findIdleSegments(timeline) {
+  const segments = [];
+  const steps = timeline.steps ?? [];
+
+  for (const step of steps) {
+    const target = timeline.focuses?.find(focus => focus.readyAt >= step.start && focus.readyAt <= step.actionStart);
+    if (target) {
+      const segment = makeIdleSegment(step.start, target.readyAt, 'prepare');
+      if (segment) segments.push(segment);
+    }
+    if (step.action === 'wait') {
+      const end = step.interactionEnd ?? step.end;
+      const segment = makeIdleSegment(step.start, end, 'wait');
+      if (segment) segments.push(segment);
+    }
+
+    if (step.expectationEnd !== undefined && step.interactionEnd !== undefined) {
+      const segment = makeIdleSegment(step.interactionEnd, step.expectationEnd, 'expect');
+      if (segment) segments.push(segment);
+    }
+  }
+
+  if (!steps.some(step => step.expectationEnd !== undefined)) {
+    for (const focus of timeline.focuses ?? []) {
+      const segment = makeIdleSegment(focus.interactionEnd, focus.end, 'expect');
+      if (segment) segments.push(segment);
+    }
+  }
+
+  const protectedSpans = [...(timeline.scrolls ?? [])];
+  for (let i = 1; i < (timeline.points?.length ?? 0); i++) {
+    const a = timeline.points[i - 1];
+    const b = timeline.points[i];
+    if (a.x !== b.x || a.y !== b.y) protectedSpans.push({ start: a.t, end: b.t });
+  }
+  for (const click of timeline.clicks ?? []) protectedSpans.push({ start: click.t - 0.1, end: click.t + 0.2 });
+  return removeOverlaps(segments.filter(segment => !protectedSpans.some(span => span.start < segment.end && span.end > segment.start)));
+}
+
+// Integral of the minimum-jerk easing curve; speed and acceleration match at both seams.
+function integratedEase(t) {
+  return t ** 4 * (2.5 - 3 * t + t * t);
+}
+
+function mapMiddle(offset, sourceDuration, outputDuration) {
+  const ramp = Math.min(0.45, outputDuration / 4);
+  const rate = (outputDuration - ramp) / (sourceDuration - ramp);
+  function entry(x) {
+    return x - (1 - rate) * ramp * integratedEase(x / ramp);
+  }
+  if (offset < ramp) return entry(offset);
+  if (offset > sourceDuration - ramp) return outputDuration - entry(sourceDuration - offset);
+  return ramp * (1 + rate) / 2 + (offset - ramp) * rate;
+}
+
+function createTimeMap(segments) {
+  return function mapTime(time) {
+    let removed = 0;
+    for (const segment of segments) {
+      if (time >= segment.end) {
+        removed += segment.end - segment.start - segment.duration;
+        continue;
+      }
+      if (time <= segment.start) break;
+      const sourceDuration = segment.end - segment.start;
+      const offset = time - segment.start;
+      const outputStart = segment.start - removed;
+      if (offset <= preservedEdge) return outputStart + offset;
+      if (offset >= sourceDuration - preservedEdge) {
+        return outputStart + segment.duration - (sourceDuration - offset);
+      }
+      const sourceMiddle = sourceDuration - preservedEdge * 2;
+      const outputMiddle = segment.duration - preservedEdge * 2;
+      return outputStart + preservedEdge + mapMiddle(offset - preservedEdge, sourceMiddle, outputMiddle);
+    }
+    return time - removed;
+  };
+}
+
+function mapKeys(value, keys, mapTime) {
+  for (const key of keys) {
+    if (Number.isFinite(value[key])) value[key] = mapTime(value[key]);
+  }
+}
+
+function remapTimeline(source, mapTime) {
+  const timeline = structuredClone(source);
+  for (const frame of timeline.frames ?? []) mapKeys(frame, ['t'], mapTime);
+  for (const point of timeline.points ?? []) mapKeys(point, ['t'], mapTime);
+  for (const click of timeline.clicks ?? []) mapKeys(click, ['t'], mapTime);
+  for (const cursor of timeline.cursors ?? []) mapKeys(cursor, ['t'], mapTime);
+  for (const scroll of timeline.scrolls ?? []) mapKeys(scroll, ['start', 'end'], mapTime);
+  for (const focus of timeline.focuses ?? []) {
+    mapKeys(focus, ['t', 'readyAt', 'interactionEnd', 'end'], mapTime);
+  }
+  for (const step of timeline.steps ?? []) {
+    mapKeys(step, ['start', 'actionStart', 'interactionEnd', 'expectationEnd', 'end'], mapTime);
+  }
+  timeline.duration = mapTime(timeline.duration);
+  return timeline;
+}
+
+export function paceTimeline(source, mode = 'balanced') {
+  if (mode === 'original') {
+    return { timeline: source, report: { mode, adjustedGaps: 0, savedSeconds: 0 } };
+  }
+
+  const segments = findIdleSegments(source);
+  const mapTime = createTimeMap(segments);
+  const timeline = remapTimeline(source, mapTime);
+  const savedSeconds = source.duration - timeline.duration;
+  return {
+    timeline,
+    report: {
+      mode,
+      adjustedGaps: segments.length,
+      savedSeconds: +savedSeconds.toFixed(3),
+      sourceDuration: source.duration,
+      contentDuration: timeline.duration,
+      gaps: segments.map(segment => ({
+        kind: segment.kind,
+        sourceSeconds: +(segment.end - segment.start).toFixed(3),
+        outputSeconds: +segment.duration.toFixed(3),
+      })),
+    },
+  };
+}

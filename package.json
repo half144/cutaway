@@ -1,0 +1,22 @@
+{
+  "name": "agent-screen-studio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local cinematic browser recordings for AI agents",
+  "bin": {
+    "agent-screen": "./src/cli.mjs"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "demo": "node src/cli.mjs record examples/demo.json --out recordings/demo",
+    "check": "node scripts/check.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@napi-rs/canvas": "^0.1.80",
+    "playwright": "^1.58.0"
+  }
+}
