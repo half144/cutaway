@@ -64,9 +64,9 @@ test('zoom balances responsiveness with a gradual arrival', () => {
   const camera = new Camera(1440, 900);
   const focus = { x: 650, y: 420, width: 100, height: 40, action: 'click' };
   for (let i = 0; i < 30; i++) camera.update(focus, null, 1 / 60);
-  assert.ok(camera.zoom > 1.25 && camera.zoom < 1.3);
+  assert.ok(camera.zoom > 1.4 && camera.zoom < 1.5);
   for (let i = 0; i < 150; i++) camera.update(focus, null, 1 / 60);
-  assert.ok(Math.abs(camera.zoom - 1.35) < 0.001);
+  assert.ok(Math.abs(camera.zoom - 1.55) < 0.001);
 });
 
 test('camera anticipation waits for visible targets and preserves an explicit focus', () => {
@@ -113,5 +113,5 @@ test('a connected cluster shares its final scale across all actions', () => {
     { ...target, t: 2, action: 'click' },
     { ...target, t: 3, action: 'focus', manual: true },
   ], { width: 1440, height: 900 }, 1.8);
-  assert.deepEqual(windows.map(focus => focus.plannedZoom), [1.3, 1.3, 1.3]);
+  assert.deepEqual(windows.map(focus => focus.plannedZoom), [1.45, 1.45, 1.45]);
 });

@@ -61,7 +61,7 @@ export function planFocusZooms(windows, viewport, maxZoom) {
       previous.y + previous.height / 2 - focus.y - focus.height / 2,
     ) : Infinity;
     if (!previous || focus.t > previous.releaseAt || distance >= viewport.width * 0.25
-      || Math.abs(groupZoom - focus.plannedZoom) > 0.16) {
+      || Math.abs(groupZoom - focus.plannedZoom) > 0.3) {
       finishGroup();
       group = [];
       groupZoom = Infinity;

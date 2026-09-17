@@ -47,9 +47,10 @@ function fitCenter(current, min, max) {
 
 export function focusZoom(focus, width, height, maxZoom, safeZone) {
   const region = visibleRegion(focus, width, height);
-  let preferred = 1.35;
-  if (focus.action === 'type') preferred = 1.5;
-  if (focus.manual) preferred = 1.3;
+  const zoomScale = Math.min(1.35, maxZoom / 1.8);
+  let preferred = 1.55 * zoomScale;
+  if (focus.action === 'type') preferred = 1.75 * zoomScale;
+  if (focus.manual) preferred = 1.45 * zoomScale;
   return Math.max(1, Math.min(maxZoom, preferred,
     width * safeZone / (region.width + 100),
     height * safeZone / (region.height + 90)));

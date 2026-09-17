@@ -108,6 +108,7 @@ test('adaptive zoom distinguishes typing, clicks, and large surrounding regions'
   assert.ok(zoom({ ...target, manual: true }) < zoom({ ...target, action: 'click' }));
   assert.ok(zoom({ ...target, context: { ...target, width: 800, height: 350 } }) < zoom(target));
   assert.equal(focusZoom(target, 1440, 900, 1, 0.65), 1);
+  assert.ok(focusZoom({ ...target, action: 'click' }, 1440, 900, 2.4, 0.65) > zoom(target));
 });
 
 test('invalid actions and non-finite timing fail before browser actions', () => {
