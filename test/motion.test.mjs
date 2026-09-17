@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { Camera, pointerPath, pointerAt, focusZoom } from '../src/motion.mjs';
+import { movementDuration } from '../src/capture/pacing.mjs';
+import { Camera, focusZoom, pointerAt, pointerPath, targetPoint } from '../src/motion.mjs';
 import { validatePlan } from '../src/plan.mjs';
 
 test('pointer arrives exactly at the target and slows down at both ends', () => {
@@ -12,6 +13,42 @@ test('pointer arrives exactly at the target and slows down at both ends', () => 
   const distance = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
   assert.ok(distance(path[0], path[1]) < distance(path[29], path[30]) / 50);
   assert.ok(distance(path.at(-1), path.at(-2)) < distance(path[29], path[30]) / 50);
+});
+
+test('pointer motion is deterministic but varies its path between gestures', () => {
+  const from = { x: 40, y: 700 };
+  const to = { x: 1200, y: 180 };
+  const first = pointerPath(from, to, 1, { seed: 3, targetWidth: 40 });
+  const repeated = pointerPath(from, to, 1, { seed: 3, targetWidth: 40 });
+  const different = pointerPath(from, to, 1, { seed: 4, targetWidth: 40 });
+  assert.deepEqual(first, repeated);
+  assert.notDeepEqual(first, different);
+  assert.deepEqual(first.at(-1), { t: 1, ...to });
+});
+
+test('long pointer moves settle laterally without overshooting the target', () => {
+  const path = pointerPath({ x: 0, y: 0 }, { x: 800, y: 0 }, 1, { seed: 6, targetWidth: 40 });
+  assert.ok(Math.max(...path.map(point => point.x)) <= 800);
+  assert.ok(path.slice(-12, -1).some(point => Math.abs(point.y) > 0.1));
+  assert.ok(Math.max(...path.map(point => Math.abs(point.y))) < 80);
+  assert.deepEqual(path.at(-1), { t: 1, x: 800, y: 0 });
+});
+
+test('click landing points stay inside the target and avoid mechanical centering', () => {
+  const box = { x: 100, y: 200, width: 160, height: 44 };
+  const points = [0, 1, 2].map(seed => targetPoint(box, seed));
+  for (const point of points) {
+    assert.ok(point.x > box.x && point.x < box.x + box.width);
+    assert.ok(point.y > box.y && point.y < box.y + box.height);
+  }
+  assert.ok(points.some(point => point.x !== 180 || point.y !== 222));
+  assert.notDeepEqual(points[0], points[1]);
+});
+
+test('movement timing follows distance and target difficulty', () => {
+  assert.ok(movementDuration(900, 24) > movementDuration(120, 120));
+  assert.ok(movementDuration(500, 24) > movementDuration(500, 180));
+  assert.ok(movementDuration(5000, 5) <= 1.2);
 });
 
 test('camera does not follow small cursor movements inside its safe region', () => {

@@ -15,8 +15,13 @@ export function pauseAfter(step, nextStep) {
   return pauses[step.action] ?? 0.35;
 }
 
-export function movementDuration(distance, targetWidth = 40) {
-  return Math.min(0.95, 0.2 + 0.12 * Math.log2(1 + distance / Math.max(24, targetWidth)));
+export function movementDuration(distance, targetWidth = 40, cadence = 0) {
+  const difficulty = Math.log2(1 + distance / Math.max(18, targetWidth));
+  return Math.max(0.28, Math.min(1.2, 0.18 + 0.16 * difficulty + cadence * 0.045));
+}
+
+export function clickSettleDelay(index) {
+  return 0.12 + ((index * 37 + 11) % 7) * 0.01;
 }
 
 export function typingDelay(character, index) {

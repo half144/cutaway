@@ -1,6 +1,36 @@
 export const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 export const ease = t => t * t * t * (10 + t * (-15 + t * 6));
 
+function unitNoise(seed) {
+  let value = seed | 0;
+  value = Math.imul(value ^ value >>> 16, 0x21f0aaad);
+  value = Math.imul(value ^ value >>> 15, 0x735a2d97);
+  return ((value ^ value >>> 15) >>> 0) / 0x100000000;
+}
+
+function motionSeed(from, to, seed) {
+  return Math.imul(Math.round(from.x * 8), 73856093)
+    ^ Math.imul(Math.round(from.y * 8), 19349663)
+    ^ Math.imul(Math.round(to.x * 8), 83492791)
+    ^ Math.imul(Math.round(to.y * 8), 2654435761)
+    ^ Math.imul(seed + 1, 1597334677);
+}
+
+function cubic(a, b, c, d, t) {
+  const inverse = 1 - t;
+  return inverse ** 3 * a + 3 * inverse ** 2 * t * b + 3 * inverse * t ** 2 * c + t ** 3 * d;
+}
+
+export function targetPoint(box, seed = 0) {
+  const base = motionSeed({ x: box.x, y: box.y }, { x: box.width, y: box.height }, seed);
+  const offsetX = Math.min(12, box.width * 0.12, Math.max(0, box.width / 2 - 3));
+  const offsetY = Math.min(7, box.height * 0.12, Math.max(0, box.height / 2 - 3));
+  return {
+    x: box.x + box.width / 2 + (unitNoise(base + 1) * 2 - 1) * offsetX,
+    y: box.y + box.height / 2 + (unitNoise(base + 2) * 2 - 1) * offsetY,
+  };
+}
+
 function visibleRegion(focus, width, height) {
   const region = focus.framingContext ?? focus.context ?? focus;
   const x = clamp(region.x, 0, width);
@@ -25,20 +55,48 @@ export function focusZoom(focus, width, height, maxZoom, safeZone) {
     height * safeZone / (region.height + 90)));
 }
 
-export function pointerPath(from, to, duration, fps = 60) {
+export function pointerPath(from, to, duration, options = {}) {
+  const settings = typeof options === 'number' ? { fps: options } : options;
+  const { fps = 60, seed = 0, targetWidth = 40 } = settings;
   const count = Math.max(2, Math.ceil(duration * fps));
   const dx = to.x - from.x;
   const dy = to.y - from.y;
   const length = Math.hypot(dx, dy) || 1;
-  const bend = Math.min(28, length * 0.045);
+  const ux = dx / length;
+  const uy = dy / length;
+  const nx = -uy;
+  const ny = ux;
+  const base = motionSeed(from, to, seed);
+  const side = unitNoise(base + 1) < 0.5 ? -1 : 1;
+  const bend = side * Math.min(72, length * (0.055 + unitNoise(base + 2) * 0.035));
+  const first = 0.24 + unitNoise(base + 3) * 0.08;
+  const second = 0.68 + unitNoise(base + 4) * 0.09;
+  const secondBend = bend * (0.28 + unitNoise(base + 5) * 0.32);
+  const firstControl = {
+    x: from.x + dx * first + nx * bend,
+    y: from.y + dy * first + ny * bend,
+  };
+  const secondControl = {
+    x: from.x + dx * second + nx * secondBend,
+    y: from.y + dy * second + ny * secondBend,
+  };
+  const correction = length > 180 ? Math.min(7, targetWidth * 0.12, length * 0.012) : 0;
+  const correctionSide = (unitNoise(base + 6) * 2 - 1) * (0.4 + unitNoise(base + 7) * 0.25);
+  const settleStart = 0.76 + unitNoise(base + 8) * 0.04;
+
   return Array.from({ length: count + 1 }, (_, i) => {
+    if (i === 0) return { t: 0, ...from };
+    if (i === count) return { t: duration, ...to };
     const t = i / count;
     const progress = ease(t);
-    const arc = Math.sin(Math.PI * progress) * bend;
+    const settle = clamp((t - settleStart) / (1 - settleStart), 0, 1);
+    const settlePulse = Math.sin(Math.PI * settle) ** 2 * correction;
     return {
       t: duration * t,
-      x: from.x + dx * progress - dy / length * arc,
-      y: from.y + dy * progress + dx / length * arc,
+      x: cubic(from.x, firstControl.x, secondControl.x, to.x, progress)
+        + nx * settlePulse * correctionSide,
+      y: cubic(from.y, firstControl.y, secondControl.y, to.y, progress)
+        + ny * settlePulse * correctionSide,
     };
   });
 }

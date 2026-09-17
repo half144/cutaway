@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { pauseAfter } from '../src/capture/pacing.mjs';
+import { clickSettleDelay, pauseAfter } from '../src/capture/pacing.mjs';
 import { paceTimeline } from '../src/render/pacing.mjs';
 
 test('capture pacing gives click sequences room without slowing deliberate holds', () => {
@@ -9,6 +9,12 @@ test('capture pacing gives click sequences room without slowing deliberate holds
   assert.equal(pauseAfter({ action: 'click', expect: '#done' }), 0.55);
   assert.equal(pauseAfter({ action: 'focus' }), 0.2);
   assert.equal(pauseAfter({ action: 'click', pause: 1.2 }), 1.2);
+});
+
+test('click settling pauses briefly and varies without becoming sluggish', () => {
+  const delays = [0, 1, 2, 3].map(clickSettleDelay);
+  assert.ok(delays.every(delay => delay >= 0.12 && delay <= 0.18));
+  assert.ok(new Set(delays).size > 1);
 });
 
 test('balanced pacing compresses only long idle spans and keeps events ordered', () => {

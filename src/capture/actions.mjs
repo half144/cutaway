@@ -1,7 +1,12 @@
 import { setTimeout as sleep } from 'node:timers/promises';
-import { ease, pointerPath } from '../motion.mjs';
-import { movementDuration, pauseAfter, typingDelay } from './pacing.mjs';
+import { ease, pointerPath, targetPoint } from '../motion.mjs';
+import { clickSettleDelay, movementDuration, pauseAfter, typingDelay } from './pacing.mjs';
 import { cursorAtPoint, targetContext, targetNeedsScroll, waitForStableTarget } from './page-state.mjs';
+
+function containsPoint(box, point) {
+  return point && point.x >= box.x && point.x <= box.x + box.width
+    && point.y >= box.y && point.y <= box.y + box.height;
+}
 
 export class ActionRunner {
   constructor(page, timeline, now, pointer) {
@@ -10,6 +15,7 @@ export class ActionRunner {
     this.now = now;
     this.pointer = pointer;
     this.cursorSampleAt = -Infinity;
+    this.movementIndex = 0;
   }
 
   async captureCursor(force = false) {
@@ -21,25 +27,36 @@ export class ActionRunner {
     if (cursors.at(-1)?.type !== type) cursors.push({ t, type });
   }
 
-  async moveTo(target, targetWidth) {
+  async moveTo(target, targetWidth = 40) {
     const distance = Math.hypot(target.x - this.pointer.x, target.y - this.pointer.y);
     if (distance <= 2) return;
-    const duration = movementDuration(distance, targetWidth);
+    const seed = this.movementIndex++;
+    const cadence = ((seed * 29 + 11) % 17) / 8 - 1;
+    const duration = movementDuration(distance, targetWidth, cadence);
     const beginning = performance.now();
-    this.timeline.points.push({ t: this.now(), ...this.pointer });
+    const timelineStart = this.now();
+    this.timeline.points.push({ t: timelineStart, ...this.pointer });
 
-    const path = pointerPath(this.pointer, target, duration);
+    const path = pointerPath(this.pointer, target, duration, { seed, targetWidth });
     for (let i = 1; i < path.length; i++) {
       // Skip overdue samples instead of replaying a burst when the browser is busy.
       while (i + 1 < path.length && path[i + 1].t * 1000 < performance.now() - beginning) i++;
       const point = path[i];
       await sleep(Math.max(0, point.t * 1000 - (performance.now() - beginning)));
       await this.page.mouse.move(point.x, point.y);
-      this.timeline.points.push({ t: this.now(), x: point.x, y: point.y });
       this.pointer = { x: point.x, y: point.y };
       await this.captureCursor();
     }
 
+    const timelineEnd = this.now();
+    const elapsed = Math.max(0.001, timelineEnd - timelineStart);
+    for (const point of path.slice(1)) {
+      this.timeline.points.push({
+        t: timelineStart + elapsed * point.t / duration,
+        x: point.x,
+        y: point.y,
+      });
+    }
     this.pointer = target;
     await this.captureCursor(true);
   }
@@ -66,8 +83,10 @@ export class ActionRunner {
     const box = await locator.boundingBox();
     if (!box) throw new Error(`Step ${index + 1}: target has no bounding box.`);
     const readyAt = this.now();
+    let landing;
     if (step.action !== 'focus') {
-      await this.moveTo({ x: box.x + box.width / 2, y: box.y + box.height / 2 }, Math.min(box.width, box.height));
+      landing = targetPoint(box, index);
+      await this.moveTo(landing, Math.min(box.width, box.height));
     }
 
     const context = await locator.evaluate(targetContext);
@@ -82,17 +101,17 @@ export class ActionRunner {
       ...box,
     };
     this.timeline.focuses.push(focus);
-    return { locator, focus };
+    return { locator, focus, landing };
   }
 
-  async click(locator, focus, index) {
-    await sleep(80);
+  async click(locator, focus, index, landing) {
+    await sleep(clickSettleDelay(index) * 1000);
     await locator.click({ trial: true });
     const box = await locator.boundingBox();
     if (!box) throw new Error(`Step ${index + 1}: target has no bounding box.`);
-    const target = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+    const target = containsPoint(box, landing) ? landing : targetPoint(box, index);
     if (Math.hypot(target.x - this.pointer.x, target.y - this.pointer.y) > 2) {
-      await this.moveTo(target);
+      await this.moveTo(target, Math.min(box.width, box.height));
     }
 
     Object.assign(focus, box);
@@ -136,12 +155,12 @@ export class ActionRunner {
   }
 
   async run(step, index, nextStep) {
-    const { locator, focus } = await this.resolveTarget(step, index);
+    const { locator, focus, landing } = await this.resolveTarget(step, index);
     const actionStart = this.now();
 
     if (step.action === 'click' || step.action === 'type') {
       const alreadyFocused = step.action === 'type' && await locator.evaluate(element => element === document.activeElement);
-      if (!alreadyFocused) await this.click(locator, focus, index);
+      if (!alreadyFocused) await this.click(locator, focus, index, landing);
       await this.captureCursor(true);
     }
 
