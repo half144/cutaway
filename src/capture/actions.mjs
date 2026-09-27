@@ -12,7 +12,7 @@ import {
 // Scrolls are captured this many times slower than they play back. The screencast delivers frames at
 // the compositor's pace, 11–50 fps at 2× while new content paints, so a real-time scroll steps visibly;
 // in slow motion every output frame gets its own capture. The render restores real speed.
-const scrollSlowdown = 4;
+export const scrollSlowdown = 4;
 const commitLabel = /\b(save|salvar|done|concluir|submit|enviar|send|delete|excluir|remove|remover|confirm|confirmar|publish|publicar|apply|aplicar|create|criar|pay|pagar)\b/i;
 
 function containsPoint(box, point) {
@@ -126,10 +126,7 @@ export class ActionRunner {
       // Bring the next target along when it fits, so consecutive steps don't each need a scroll.
       const next = await this.uniqueHandle(nextStep?.selector);
       const element = await locator.elementHandle();
-      const slowMotion = { start: this.now(), factor: scrollSlowdown };
-      await this.page.evaluate(scrollIntoComfort, [element, next, scrollSlowdown]);
-      slowMotion.end = this.now();
-      (this.timeline.slowMotion ??= []).push(slowMotion);
+      await this.bringIntoView(element, next);
       await Promise.all([element, next].filter(Boolean).map(handle => handle.dispose()));
       if (await locator.evaluate(targetNeedsScroll)) {
         await locator.evaluate(target => target.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' }));
@@ -177,7 +174,20 @@ export class ActionRunner {
     return { locator, focus, landing, commit: commitLabel.test(label) };
   }
 
-  async click(locator, focus, index, landing, watch, commit) {
+  async bringIntoView(element, next) {
+    const slowMotion = { start: this.now(), factor: scrollSlowdown };
+    await this.page.evaluate(scrollIntoComfort, [element, next, scrollSlowdown]);
+    slowMotion.end = this.now();
+    (this.timeline.slowMotion ??= []).push(slowMotion);
+  }
+
+  async press(seconds) {
+    await this.page.mouse.down();
+    await sleep(seconds * 1000);
+    await this.page.mouse.up();
+  }
+
+  async click(locator, focus, index, landing, watch, commit, hold) {
     await sleep(clickSettleDelay(index, this.difficulty, commit) * 1000);
     await locator.click({ trial: true });
     const box = await locator.boundingBox();
@@ -191,9 +201,7 @@ export class ActionRunner {
     const click = { t: this.now(), ...this.pointer };
     this.timeline.clicks.push(click);
     if (watch) await this.page.evaluate(watchChanges);
-    await this.page.mouse.down();
-    await sleep(clickHold(index) * 1000);
-    await this.page.mouse.up();
+    await this.press(hold ?? clickHold(index));
     click.up = this.now();
   }
 
@@ -216,13 +224,17 @@ export class ActionRunner {
     for (const [index, character] of characters.entries()) {
       if (index) due += delays[index];
       await sleep(Math.max(0, due - (performance.now() - beginning)));
-      await this.page.keyboard.type(character);
+      await this.typeCharacter(character, focus);
       // Word boundaries are enough for the camera to follow text across a wide field.
       if (/\s/.test(character) || index === characters.length - 1) {
         const caret = await locator.evaluate(caretPoint);
         if (caret) focus.carets.push({ t: this.now(), ...caret });
       }
     }
+  }
+
+  typeCharacter(character) {
+    return this.page.keyboard.type(character);
   }
 
   async scroll(step) {
@@ -275,7 +287,7 @@ export class ActionRunner {
 
     if (step.action === 'click' || step.action === 'type') {
       const alreadyFocused = step.action === 'type' && await locator.evaluate(element => element === document.activeElement);
-      if (!alreadyFocused) await this.click(locator, focus, index, landing, step.action === 'click' && !step.expect, commit);
+      if (!alreadyFocused) await this.click(locator, focus, index, landing, step.action === 'click' && !step.expect, commit, step.hold);
       await this.captureCursor(true);
     }
 

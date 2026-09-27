@@ -62,6 +62,32 @@ Every step accepts `pause` (seconds after the action) and `expect` (a selector t
 
 The default viewport is 1440×810 (16:9, like the export), so the window gets even margins. `file:./demo.html` is resolved relative to the JSON file. For an authenticated app, `--storage-state /path/session.auth.json` loads an existing Playwright state. `--headed` opens the browser with its UI.
 
+## Phones
+
+```json
+{
+  "url": "http://localhost:3000",
+  "device": "iPhone 15 Pro",
+  "steps": [
+    { "action": "tap", "selector": "#add", "expect": "#new-task" },
+    { "action": "type", "selector": "#task-title", "text": "Review the mobile prototype" },
+    { "action": "tap", "selector": "#save", "expect": "#toast" },
+    { "action": "swipe", "y": 420 },
+    { "action": "tap", "selector": "#task", "hold": 0.7 }
+  ]
+}
+```
+
+`device` takes a phone from Playwright's device list (`iPhone 15 Pro`, `iPhone 17 Pro`, `Pixel 7`, `Galaxy S24`…). The page runs in Playwright's Chromium with the phone's user agent, touch input and mobile layout; the viewport is the screen minus the status bar and home indicator (393×764 on an iPhone 15 Pro), captured at 3×. `tap` and `swipe` are `click` and `scroll` under other names, so the same script records on a desktop and on a phone. `hold` (0.05–5 s) turns a tap into a long press. [examples/mobile-demo.json](examples/mobile-demo.json) records a mock task app.
+
+- **Gestures:** taps and drags are CDP touch events, so the page receives real touch and pointer events, clicks and native scrolling. Between taps the thumb travels unseen: its travel time (Fitts' law) is the beat before the tap, and the camera sets off with it. A scroll is a finger drag that departs quickly and comes to rest before lifting, so the page stops with it instead of flinging; long scrolls take several strokes of at most 60% of the screen. Auto-scroll to a target out of view is a drag too.
+- **Touch indicator:** instead of a cursor, a translucent white disc the size of a fingertip (44 pt) with a faint ring, so it reads on light and dark pages. It grows in as the finger lands, follows drags, lingers 0.15 s after the finger lifts and fades out in 0.3 s while spreading to 1.33×, like the iOS show-touches tools ([ShowTime](https://github.com/KaneCheshire/ShowTime), [Fingertips](https://github.com/mapbox/Fingertips)). Screen Studio records a real iPhone over USB and cannot see taps, so it shows none.
+- **Frame:** the export defaults to 1080×1920 (9:16) with a vector phone around the page: a dark titanium body, 55 pt screen corners, Dynamic Island and side buttons on iPhones, a punch-hole camera on Android. The status bar (9:41, signal, Wi-Fi, battery) and the home indicator are drawn over bars in the color of the page's top and bottom edges, as a browser tints them. `--width 1080 --height 1350` makes a 4:5 feed video and `--width 1920 --height 1080` places the phone in a landscape video; `--window none` draws the page alone.
+- **Camera:** a close-up fills the video's width with the screen and only moves vertically, so the whole width of the app stays in view and subjects are framed by height. Swipes play in the overview.
+- **Keyboard:** while text is typed, an iPhone-style keyboard rises from the bottom (a number pad for numeric fields), each letter pops up above its key and a return key pressed right after typing lights up. A field the keyboard would cover is lifted above it, as iOS does, and the camera frames the field with the keyboard. The keyboard is gone before the next tap, so it never hides one. To draw the keys, the timeline keeps the typed characters, except in password fields.
+
+Emulation is Chromium, not WebKit: the layout matches the phone's size, touch and user agent, not Safari's rendering quirks. The system bars are drawn, not captured, and there is no browser address bar. Tablets aren't supported.
+
 ## Finishing and export
 
 ```sh
@@ -77,14 +103,14 @@ node src/cli.mjs render recordings/delivery --preset midnight --zoom 2 --window 
 
 | Option | Default | Range |
 | --- | --- | --- |
-| `--width`, `--height` | 1920 × 1080 | 320–3840, even dimensions |
+| `--width`, `--height` | 1920 × 1080; 1080 × 1920 for phones | 320–3840, even dimensions |
 | `--fps` | 60 | 24–60, integer |
 | `--zoom` | 1.5 | 1–3; close-up level; 1 turns zoom off |
 | `--blur` | 0.75 | 0–1; 0 turns motion blur off |
 | `--cursor-size` | 2 | 0.5–4 |
 | `--padding` | 0.09 | 0–0.25 |
 | `--preset` | sonoma-horizon (macos without imported wallpapers) | macos, dusk, midnight, pearl and the imported wallpapers (`tahoe-day`, `sonoma-horizon`, `big-sur`…) |
-| `--window` | browser | browser (bar with traffic lights and address), none |
+| `--window` | browser; device for phones | browser (bar with traffic lights and address), device (the phone), none |
 | `--keys` | combos | combos (shortcuts and named keys such as Esc, Enter, Tab), all, none |
 | `--pacing` | balanced | balanced (speeds up dead time), original |
 | `--quality` | high | high (x264 medium, CRF 16), standard (x264 veryfast, CRF 16: same fidelity as the old CRF 18, half the encoding time) |
@@ -117,13 +143,13 @@ More backgrounds: `npm run wallpapers` converts the macOS wallpapers installed o
 ## Session files
 
 - `frames/*.png`: lossless high-density source frames; older sessions with JPEG remain renderable.
-- `timeline.json`: timestamps, cursor positions, clicks, focus regions and status.
+- `timeline.json`: timestamps, cursor positions, clicks, focus regions and status; on a phone, touches and the typed keys.
 - `video.mp4`: the composited video.
 - `poster.png`: a frame from the middle of the export for quick inspection.
 - `camera.json`: the camera path, for diagnostics.
 - `render.json`: parameters and real measurements of export time, the number of render processes and their sampled memory, summed. `motion` summarizes movement for objective tuning: shots, share of the video spent zoomed, shortest close-up, shortest return to the overview (low values signal "pumping"), skipped focuses and capture fps during scroll.
 
-The video file is replaced only after a successful export. Re-rendering may change the session's video and diagnostic files. The script contains the typed text; the manifest doesn't duplicate it, but the frames naturally show the page's visible content.
+The video file is replaced only after a successful export. Re-rendering may change the session's video and diagnostic files. The script contains the typed text; a desktop manifest doesn't duplicate it, but the frames naturally show the page's visible content. A phone manifest keeps the typed characters for the keyboard, except in password fields.
 
 ## Architecture and dependencies
 
@@ -142,6 +168,7 @@ src/
 ├── capture/
 │   ├── record.mjs          orchestrates the recording session
 │   ├── actions.mjs         runs steps and cursor movement
+│   ├── touch.mjs           phone gestures: taps, drags and keys
 │   ├── pacing.mjs          pause, movement and typing timing
 │   ├── page-state.mjs      DOM inspection, auto-scroll and caret position
 │   └── screencast.mjs      captures, checks resolution and persists CDP frames
@@ -153,6 +180,9 @@ src/
 │   ├── background.mjs      wallpaper, gradients and window shadow
 │   ├── wallpapers.mjs      background presets and the default
 │   ├── toolbar.mjs         browser bar: tone and drawing
+│   ├── device.mjs          phone frame, system bars and screen
+│   ├── keyboard.mjs        phone keyboard while typing
+│   ├── touch.mjs           touch indicators
 │   ├── scene.mjs           direct source composition and scene transform
 │   ├── cursor-art.mjs      cursor vectors
 │   ├── cursor.mjs          per-frame shape, visibility, tilt and click
@@ -185,7 +215,7 @@ References studied: [Screen Studio — animations](https://screen.studio/guide/a
 - Camera and cursor render at 60 fps by default. Interface capture follows the browser compositor's pace; 60 fps output doesn't guarantee 60 distinct app frames per second.
 - No audio, webcam, native windows, popups, drag-and-drop or visual timeline editing.
 - Scrolls are captured in 4× slow motion and played back at real speed: the browser delivers 11–50 fps while it paints new content at 2×, so a real-time capture stepped visibly; in slow motion every output frame gets its own capture (~200 fps effective in the dashboard demo). Other page animations are captured as they happen, and the temporal blur covers camera and cursor without synthesizing in-between interface frames.
-- Changing the output aspect ratio keeps the capture's aspect ratio and adds margin; there is no automatic reframing for vertical social formats yet.
+- Changing the output aspect ratio keeps the capture's aspect ratio and adds margin; there is no automatic reframing of desktop recordings for vertical formats. Record with a phone `device` for a vertical video.
 - Uses Skia and libx264 on the CPU, in parallel processes. On an Apple M4 a 26 s demo exports in ~46 s at the default 1080p60 `high`, and in ~17 s at 1280×720 with `--quality standard` (previously ~140 s). GPU composition and a hardware encoder still need implementation and benchmarking.
 - New captures record arrow, hand and I-beam from the DOM. Custom canvas/iframe cursors aren't captured; older sessions use the arrow.
 

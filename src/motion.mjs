@@ -1,6 +1,7 @@
 export const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 export const mix = (a, b, t) => a + (b - a) * t;
 export const ease = t => t * t * t * (10 + t * (-15 + t * 6));
+export const easeOut = t => 1 - (1 - t) ** 3;
 
 export function unitNoise(seed) {
   let value = seed | 0;
@@ -105,18 +106,24 @@ function fitCenter(current, min, max) {
 }
 
 export class Camera {
-  // Coordinates are page pixels. `top` extends the window above the page (browser toolbar);
-  // `sceneWidth`/`sceneHeight` are the full output measured in page pixels at zoom 1.
-  constructor(width, height, { top = 0, sceneWidth = width, sceneHeight = height - top } = {}) {
+  // Coordinates are page pixels. `top` extends the window above the page (browser toolbar); `bounds`
+  // is the whole window when it also extends elsewhere (a phone's body). `sceneWidth`/`sceneHeight`
+  // are the full output measured in page pixels at zoom 1. `lockX` keeps the view centered
+  // horizontally: a phone screen fits the width at every zoom, so the camera only travels up and down.
+  constructor(width, height, {
+    top = 0, bounds = { x: 0, y: top, width, height: height - top },
+    sceneWidth = bounds.width, sceneHeight = bounds.height, lockX = false,
+  } = {}) {
     this.width = width;
     this.height = height;
-    this.top = top;
+    this.bounds = bounds;
     this.sceneWidth = sceneWidth;
     this.sceneHeight = sceneHeight;
-    this.centerX = width / 2;
-    this.centerY = (top + height) / 2;
-    this.padX = Math.max(0, (sceneWidth - width) / 2);
-    this.padY = Math.max(0, (sceneHeight - height + top) / 2);
+    this.lockX = lockX;
+    this.centerX = bounds.x + bounds.width / 2;
+    this.centerY = bounds.y + bounds.height / 2;
+    this.padX = Math.max(0, (sceneWidth - bounds.width) / 2);
+    this.padY = Math.max(0, (sceneHeight - bounds.height) / 2);
     // Never below the overview padding, so travel opens as soon as the zoom starts.
     this.bleedX = Math.max(maxBleed, this.padX / sceneWidth) * sceneWidth;
     this.bleedY = Math.max(maxBleed, this.padY / sceneHeight) * sceneHeight;
@@ -130,12 +137,12 @@ export class Camera {
 
   rangeX(zoom) {
     const bleed = Math.min(this.padX, this.bleedX / zoom);
-    return Math.max(0, this.width / 2 + bleed - this.sceneWidth / (2 * zoom));
+    return Math.max(0, this.bounds.width / 2 + bleed - this.sceneWidth / (2 * zoom));
   }
 
   rangeY(zoom) {
     const bleed = Math.min(this.padY, this.bleedY / zoom);
-    return Math.max(0, (this.height - this.top) / 2 + bleed - this.sceneHeight / (2 * zoom));
+    return Math.max(0, this.bounds.height / 2 + bleed - this.sceneHeight / (2 * zoom));
   }
 
   // `response` scales the main spring: quicker when the next change is imminent, calmer before a long
@@ -176,7 +183,7 @@ export class Camera {
     if (focus) {
       const rangeX = this.rangeX(targetZoom);
       const rangeY = this.rangeY(targetZoom);
-      target.panX = rangeX > 0 ? clamp((this.targetX - this.centerX) / rangeX, -1, 1) : 0;
+      target.panX = rangeX > 0 && !this.lockX ? clamp((this.targetX - this.centerX) / rangeX, -1, 1) : 0;
       target.panY = rangeY > 0 ? clamp((this.targetY - this.centerY) / rangeY, -1, 1) : 0;
       if (this.zoom < 1.0005) {
         // Travel is zero at 1×: aim first so the zoom grows straight into its subject.

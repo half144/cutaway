@@ -17,7 +17,7 @@ async function main() {
   }
   if (command === 'validate') {
     const plan = await loadPlan(resolve(input));
-    return console.log(JSON.stringify({ valid: true, steps: plan.steps.length, viewport: plan.viewport,
+    return console.log(JSON.stringify({ valid: true, steps: plan.steps.length, viewport: plan.viewport, device: plan.device?.name,
       note: 'Schema validated. Selectors and application state are checked during capture.' }, null, 2));
   }
 

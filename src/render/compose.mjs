@@ -24,8 +24,8 @@ export function sampleCount(velocity, { blur, quality }) {
 export async function composeSegment(job, { onProgress, signal } = {}) {
   const { directory, settings, geometry, toolbar, sources, keyOverlay, frames, previous, start, posterIndex, path } = job;
   const { width, height, fps, blur, cursorSize, preset, quality } = settings;
-  const { frame, window, ratio, viewport } = geometry;
-  const backdrop = await createBackdrop(width, height, window, backgrounds[preset]);
+  const { frame, window, ratio, viewport, device } = geometry;
+  const backdrop = await createBackdrop(width, height, window, backgrounds[preset], device);
   const output = createCanvas(width, height);
   const outputContext = output.getContext('2d');
   // Blur samples shift an output-resolution image by fractions of a pixel: bilinear is enough.
@@ -44,7 +44,7 @@ export async function composeSegment(job, { onProgress, signal } = {}) {
   let maxRss = 0;
 
   try {
-    for (const [offset, { t, camera: state, cursor }] of frames.entries()) {
+    for (const [offset, { t, camera: state, cursor, keyboard }] of frames.entries()) {
       signal?.throwIfAborted();
       encoder.assertHealthy();
 
@@ -71,7 +71,12 @@ export async function composeSegment(job, { onProgress, signal } = {}) {
           frame,
           viewport,
           toolbar,
+          device,
+          keyboard,
           camera: { x: mix(previousState.x, state.x, fraction), y: mix(previousState.y, state.y, fraction), zoom },
+          touches: cursor.touches?.map(({ x, y, px, py, alpha, scale }) => ({
+            x: mix(px, x, fraction), y: mix(py, y, fraction), alpha, scale,
+          })),
           pointer: point && {
             x: mix(previousPoint?.x ?? point.x, point.x, fraction),
             y: mix(previousPoint?.y ?? point.y, point.y, fraction),
@@ -99,7 +104,7 @@ export async function composeSegment(job, { onProgress, signal } = {}) {
         outputContext.globalAlpha = 1;
       }
 
-      if (point && cursor.opacity > 0.002) {
+      if (cursor.touches ? cursor.touches.length : point && cursor.opacity > 0.002) {
         const cursorSamples = sampleCount(velocity + cursor.travel * ratio * state.zoom, { blur, quality });
         const cursorFrames = Array.from({ length: cursorSamples }, (_, sampleIndex) => temporalSample(sampleIndex, cursorSamples));
         const { x, y, right, bottom } = overlayBounds(cursorFrames);

@@ -23,7 +23,9 @@ export function targetNeedsScroll(element) {
 // Glides the target's scroll container so the target (and the next target, when both fit) rests
 // a little above the middle, instead of snapping it to an edge as `block: 'nearest'` does.
 // `slowdown` stretches the glide for slow-motion capture; the render plays it back at real speed.
-export async function scrollIntoComfort([element, companion, slowdown = 1]) {
+// With `measure`, nothing scrolls: it returns the distance and the visible area of the container,
+// for a finger to drag instead.
+export async function scrollIntoComfort([element, companion, slowdown = 1, measure = false]) {
   function scroller(node) {
     for (let parent = node.parentElement; parent; parent = parent.parentElement) {
       if (/(auto|scroll|overlay)/.test(getComputedStyle(parent).overflowY) && parent.scrollHeight > parent.clientHeight + 1) return parent;
@@ -32,7 +34,7 @@ export async function scrollIntoComfort([element, companion, slowdown = 1]) {
   }
   const container = scroller(element);
   const frame = container === document.scrollingElement
-    ? { top: 0, bottom: innerHeight } : container.getBoundingClientRect();
+    ? { top: 0, bottom: innerHeight, left: 0, right: innerWidth } : container.getBoundingClientRect();
   const top = Math.max(0, frame.top);
   const view = Math.min(innerHeight, frame.bottom) - top;
   const box = element.getBoundingClientRect();
@@ -51,6 +53,10 @@ export async function scrollIntoComfort([element, companion, slowdown = 1]) {
   const offset = end - start > view * 0.9 ? start - top - 24 : (start + end) / 2 - (top + view * 0.45);
   const to = Math.max(0, Math.min(limit, from + offset));
   const distance = to - from;
+  if (measure) {
+    const left = Math.max(0, frame.left);
+    return { distance, area: { x: left, y: top, width: Math.min(innerWidth, frame.right) - left, height: view } };
+  }
   if (Math.abs(distance) < 1) return;
   // Longer distances take longer, but sublinearly, like Chromium's programmatic smooth scroll.
   const duration = Math.min(1.3, 0.45 + Math.sqrt(Math.abs(distance)) / 45) * 1000 * slowdown;

@@ -1,11 +1,12 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
-import { chromium } from 'playwright';
+import { chromium, devices } from 'playwright';
 import { loadPlan } from '../plan.mjs';
 import { ActionRunner } from './actions.mjs';
 import { isQuietSpot, waitForSettled, watchChanges } from './page-state.mjs';
 import { ScreencastRecorder } from './screencast.mjs';
+import { TouchRunner } from './touch.mjs';
 
 // Where the pointer waits before the first gesture: a spot that reacts to nothing on hover.
 async function restingPoint(page, viewport) {
@@ -63,7 +64,12 @@ export async function record(planPath, directory, { headed = false, storageState
   }
 
   try {
-    const context = await browser.newContext({ viewport: plan.viewport, deviceScaleFactor: plan.captureScale, storageState });
+    // A phone is emulated in Playwright's Chromium, which the CDP screencast needs, rather than the WebKit
+    // its descriptor names: user agent, touch input and mobile layout come from the descriptor.
+    const { defaultBrowserType, viewport, deviceScaleFactor, ...phone } = plan.device ? devices[plan.device.name] : {};
+    const context = await browser.newContext({
+      ...phone, screen: plan.device?.screen, viewport: plan.viewport, deviceScaleFactor: plan.captureScale, storageState,
+    });
     const page = await context.newPage();
     page.setDefaultTimeout(plan.timeout ?? 10000);
     context.on('page', popup => {
@@ -76,12 +82,16 @@ export async function record(planPath, directory, { headed = false, storageState
     await page.evaluate(watchChanges);
     await page.evaluate(waitForSettled, { limit: 3000, quiet: 400 });
 
-    const initialPointer = await restingPoint(page, plan.viewport);
-    await page.mouse.move(initialPointer.x, initialPointer.y);
+    const initialPointer = plan.device ? null : await restingPoint(page, plan.viewport);
+    if (initialPointer) await page.mouse.move(initialPointer.x, initialPointer.y);
     const session = await context.newCDPSession(page);
     startedAt = Date.now();
     timeline.setupSeconds = (performance.now() - beginning) / 1000;
-    timeline.points.push({ t: 0, ...initialPointer });
+    if (initialPointer) timeline.points.push({ t: 0, ...initialPointer });
+    if (plan.device) {
+      timeline.device = plan.device;
+      timeline.input = 'touch';
+    }
     const initial = await page.screenshot({ type: 'png' });
     await writeFile(join(directory, 'frames', '000000.png'), initial);
     timeline.frames.push({ t: 0, file: 'frames/000000.png' });
@@ -94,7 +104,7 @@ export async function record(planPath, directory, { headed = false, storageState
     // A calm opening beat before the first gesture.
     await sleep(600);
 
-    const actions = new ActionRunner(page, timeline, now, initialPointer);
+    const actions = plan.device ? new TouchRunner(page, timeline, now, session) : new ActionRunner(page, timeline, now, initialPointer);
     for (const [index, step] of plan.steps.entries()) {
       assertHealthy();
       process.stderr.write(`Recording ${index + 1}/${plan.steps.length}: ${step.action}\n`);

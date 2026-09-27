@@ -4,6 +4,7 @@ import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { concatSegments } from './encoder.mjs';
+import { createDeviceFrame, deviceLayout } from './device.mjs';
 import { createFrame } from './scene.mjs';
 import { keyEvents } from './keys.mjs';
 import { motionMetrics } from './metrics.mjs';
@@ -31,21 +32,30 @@ function startWorker(job, onProgress) {
   return { child, done, exited };
 }
 
+// A phone recording exports as a vertical video with the phone around the page.
+const phoneDefaults = { width: 1080, height: 1920, window: 'device' };
+
 export async function render(directory, options = {}) {
-  const settings = renderSettings(options);
-  const { width, height, fps, maxZoom, blur, cursorSize, padding, preset, pacing, quality, window: windowStyle, keys } = settings;
   const sourceTimeline = JSON.parse(await readFile(join(directory, 'timeline.json'), 'utf8'));
   if (sourceTimeline.status !== 'complete' || !sourceTimeline.frames.length) {
     throw new Error('Cannot render an incomplete recording. Inspect timeline.json.');
+  }
+  const settings = renderSettings({ ...(sourceTimeline.device && phoneDefaults), ...options });
+  const { width, height, fps, maxZoom, blur, cursorSize, padding, preset, pacing, quality, window: windowStyle, keys } = settings;
+  if (windowStyle === 'device' && !sourceTimeline.device) {
+    throw new Error('--window device needs a recording made with a phone "device" in the plan.');
   }
   const paced = paceTimeline(sourceTimeline, pacing, pacing === 'balanced' ? await stillFrames(sourceTimeline, directory) : undefined);
   const timeline = paced.timeline;
   const viewport = timeline.viewport;
 
   const toolbar = windowStyle === 'browser' ? await toolbarStyle(timeline, directory) : null;
-  const { frame, window, ratio, scene: sceneSize } = createFrame(width, height, viewport, padding, toolbar ? toolbarHeight : 0);
-  const { shots, report: shotReport, duration, frames } = renderTracks(timeline, {
-    scene: sceneSize, level: maxZoom, fps, top: toolbar ? -toolbarHeight : 0, ratio, width, height,
+  const device = windowStyle === 'device' ? deviceLayout(timeline.device, viewport) : null;
+  const { frame, window, ratio, scene: sceneSize, bounds } = device
+    ? createDeviceFrame(width, height, viewport, padding, device)
+    : createFrame(width, height, viewport, padding, toolbar ? toolbarHeight : 0);
+  const { shots, report: shotReport, duration, frames, keyboard } = renderTracks(timeline, {
+    scene: sceneSize, level: maxZoom, fps, top: toolbar ? -toolbarHeight : 0, bounds, ratio, width, height, keyboard: Boolean(device),
   });
   const outputPath = resolve(options.output ?? join(directory, 'video.mp4'));
   const partsDirectory = `${outputPath}.${randomUUID()}.parts`;
@@ -56,10 +66,11 @@ export async function render(directory, options = {}) {
   const shared = {
     directory: resolve(directory),
     settings,
-    geometry: { frame, window, ratio, viewport },
+    geometry: { frame, window, ratio, viewport, device },
     toolbar,
     sources: timeline.frames,
-    keyOverlay: keyEvents(timeline, keys),
+    // A return key pressed on the phone's keyboard is seen there, not in the shortcut pill.
+    keyOverlay: keyEvents(timeline, keys).filter(event => !keyboard.some(span => span.keys.some(key => key.key === '\n' && key.t === event.t))),
     posterIndex: Math.floor(frameCount / 2),
   };
   let rendered = 0;

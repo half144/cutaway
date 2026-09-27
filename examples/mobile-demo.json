@@ -1,0 +1,15 @@
+{
+  "url": "file:./mobile-demo.html",
+  "device": "iPhone 15 Pro",
+  "steps": [
+    { "action": "tap", "selector": "#add", "expect": "#composer.open #new-task" },
+    { "action": "type", "selector": "#task-title", "text": "Revisar protótipo mobile" },
+    { "action": "tap", "selector": "#priority" },
+    { "action": "tap", "selector": "#save", "expect": "#toast.show" },
+    { "action": "swipe", "y": 420 },
+    { "action": "tap", "selector": "#deploy-check" },
+    { "action": "tap", "selector": "#read", "hold": 0.7, "expect": "#actions.open #task-menu" },
+    { "action": "tap", "selector": "#actions [data-close]" },
+    { "action": "tap", "selector": "#tab-done", "expect": "body[data-tab=done]" }
+  ]
+}
