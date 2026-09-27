@@ -10,7 +10,8 @@ export const help = `agent-screen — cinematic browser recordings for agents
 Rendering: --width 1920 --height 1080 --fps 60 --zoom 1.8 --blur 0.75
            --cursor-size 2 --padding 0.09 --preset macos|dusk|midnight|pearl|<wallpaper>
            (npm run wallpapers imports this Mac's wallpapers as presets)
-           --window browser|none --keys combos|all|none
+           --window browser|device|none --keys combos|all|none
+           (phone recordings default to 1080x1920 and --window device)
            --pacing balanced|original --quality high|standard
 Capture:   --storage-state <auth.json> (existing Playwright storage state)
 

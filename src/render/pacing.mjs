@@ -184,12 +184,17 @@ function remapTimeline(source, mapTime) {
   for (const frame of timeline.frames ?? []) mapKeys(frame, ['t'], mapTime);
   for (const point of timeline.points ?? []) mapKeys(point, ['t'], mapTime);
   for (const click of timeline.clicks ?? []) mapKeys(click, ['t', 'up'], mapTime);
+  for (const touch of timeline.touches ?? []) {
+    mapKeys(touch, ['t', 'up'], mapTime);
+    for (const point of touch.points) mapKeys(point, ['t'], mapTime);
+  }
   for (const key of timeline.keys ?? []) mapKeys(key, ['t'], mapTime);
   for (const cursor of timeline.cursors ?? []) mapKeys(cursor, ['t'], mapTime);
   for (const scroll of timeline.scrolls ?? []) mapKeys(scroll, ['start', 'end'], mapTime);
   for (const focus of timeline.focuses ?? []) {
     mapKeys(focus, ['t', 'readyAt', 'approachStart', 'typingStart', 'interactionEnd', 'end'], mapTime);
     for (const caret of focus.carets ?? []) mapKeys(caret, ['t'], mapTime);
+    for (const key of focus.keys ?? []) mapKeys(key, ['t'], mapTime);
     if (focus.result) mapKeys(focus.result, ['t'], mapTime);
   }
   for (const step of timeline.steps ?? []) {

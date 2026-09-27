@@ -3,7 +3,7 @@ import { backgrounds, defaultPreset } from './wallpapers.mjs';
 export const presetNames = new Set(Object.keys(backgrounds));
 export const pacingNames = new Set(['balanced', 'original']);
 export const qualityNames = new Set(['high', 'standard']);
-export const windowNames = new Set(['browser', 'none']);
+export const windowNames = new Set(['browser', 'device', 'none']);
 export const keyModes = new Set(['combos', 'all', 'none']);
 
 export function renderSettings(options = {}) {

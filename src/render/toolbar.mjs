@@ -4,7 +4,7 @@ import { basename, join } from 'node:path';
 
 // Measured in page pixels, like the captured viewport.
 export const toolbarHeight = 40;
-const uiFont = '"Helvetica Neue", Helvetica, Arial, sans-serif';
+export const uiFont = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
 // Toolbar tone follows the top of the page so the window reads as one piece.
 export async function toolbarStyle(timeline, directory) {

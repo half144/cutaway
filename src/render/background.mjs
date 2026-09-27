@@ -1,5 +1,6 @@
 import { createCanvas, loadImage } from '@napi-rs/canvas';
 import { readFile } from 'node:fs/promises';
+import { drawDeviceBody } from './device.mjs';
 
 export { backgrounds } from './wallpapers.mjs';
 
@@ -10,7 +11,8 @@ const shadows = [
   { offset: 2, blur: 5, color: '#0000002e' },
 ];
 
-export async function createBackdrop(width, height, window, preset) {
+// A phone's body is drawn here too: it sits still in the scene, like the wallpaper.
+export async function createBackdrop(width, height, window, preset, device) {
   const canvas = createCanvas(width, height);
   const context = canvas.getContext('2d');
 
@@ -46,6 +48,10 @@ export async function createBackdrop(width, height, window, preset) {
     context.beginPath();
     context.roundRect(window.x - away, window.y, window.width, window.height, window.radius);
     context.fill();
+  }
+  if (device) {
+    context.shadowColor = 'transparent';
+    drawDeviceBody(context, window, device);
   }
   return canvas;
 }

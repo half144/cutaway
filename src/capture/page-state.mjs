@@ -23,7 +23,10 @@ export function targetNeedsScroll(element) {
 // Glides the target's scroll container so the target (and the next target, when both fit) rests
 // a little above the middle, instead of snapping it to an edge as `block: 'nearest'` does.
 // `slowdown` stretches the glide for slow-motion capture; the render plays it back at real speed.
-export async function scrollIntoComfort([element, companion, slowdown = 1]) {
+// With `measure`, nothing scrolls: it returns the distance and the visible area of the container,
+// for a finger to drag instead, and `across`, the sideways drag a table wider than the screen needs
+// to show a target it clips.
+export async function scrollIntoComfort([element, companion, slowdown = 1, measure = false]) {
   function scroller(node) {
     for (let parent = node.parentElement; parent; parent = parent.parentElement) {
       if (/(auto|scroll|overlay)/.test(getComputedStyle(parent).overflowY) && parent.scrollHeight > parent.clientHeight + 1) return parent;
@@ -32,7 +35,7 @@ export async function scrollIntoComfort([element, companion, slowdown = 1]) {
   }
   const container = scroller(element);
   const frame = container === document.scrollingElement
-    ? { top: 0, bottom: innerHeight } : container.getBoundingClientRect();
+    ? { top: 0, bottom: innerHeight, left: 0, right: innerWidth } : container.getBoundingClientRect();
   const top = Math.max(0, frame.top);
   const view = Math.min(innerHeight, frame.bottom) - top;
   const box = element.getBoundingClientRect();
@@ -51,6 +54,23 @@ export async function scrollIntoComfort([element, companion, slowdown = 1]) {
   const offset = end - start > view * 0.9 ? start - top - 24 : (start + end) / 2 - (top + view * 0.45);
   const to = Math.max(0, Math.min(limit, from + offset));
   const distance = to - from;
+  if (measure) {
+    const left = Math.max(0, frame.left);
+    let across = null;
+    for (let parent = element.parentElement; parent; parent = parent.parentElement) {
+      if (!/(auto|scroll)/.test(getComputedStyle(parent).overflowX) || parent.scrollWidth <= parent.clientWidth + 1) continue;
+      const rect = parent.getBoundingClientRect();
+      const x = Math.max(0, rect.left);
+      const width = Math.min(innerWidth, rect.right) - x;
+      if (box.left >= x + 8 && box.right <= x + width - 8) break;
+      // Centered in the container, dragged along the target's own row.
+      const to = Math.max(0, Math.min(parent.scrollWidth - parent.clientWidth,
+        parent.scrollLeft + (box.left + box.right) / 2 - (x + width / 2)));
+      across = { distance: to - parent.scrollLeft, area: { x, y: box.top + box.height / 2 - 20, width, height: 40 } };
+      break;
+    }
+    return { distance, area: { x: left, y: top, width: Math.min(innerWidth, frame.right) - left, height: view }, across };
+  }
   if (Math.abs(distance) < 1) return;
   // Longer distances take longer, but sublinearly, like Chromium's programmatic smooth scroll.
   const duration = Math.min(1.3, 0.45 + Math.sqrt(Math.abs(distance)) / 45) * 1000 * slowdown;
@@ -71,7 +91,7 @@ export async function scrollIntoComfort([element, companion, slowdown = 1]) {
   });
 }
 
-export function waitForStableTarget(element) {
+export function waitForStableTarget(element, limit = 2000) {
   return new Promise(resolve => {
     const beginning = performance.now();
     let previous = element.getBoundingClientRect();
@@ -80,7 +100,7 @@ export function waitForStableTarget(element) {
       const box = element.getBoundingClientRect();
       stable = Math.abs(box.x - previous.x) + Math.abs(box.y - previous.y) < 0.1 ? stable + 1 : 0;
       previous = box;
-      if ((performance.now() - beginning > 100 && stable >= 4) || performance.now() - beginning > 2000) resolve();
+      if ((performance.now() - beginning > 100 && stable >= 4) || performance.now() - beginning > limit) resolve();
       else requestAnimationFrame(check);
     }
     requestAnimationFrame(check);
@@ -206,6 +226,20 @@ export function isQuietSpot(point) {
   const busy = 'a, button, input, select, textarea, label, summary, svg, canvas, video, iframe, [title], [data-state], '
     + '[role=button], [role=link], [role=tab], [role=menuitem], [role=option], [role=checkbox], [role=radio], [role=slider], [role=switch]';
   return !element.closest(busy) && getComputedStyle(element).cursor !== 'pointer';
+}
+
+// Where a finger can start a drag without setting anything off: not on a control, which may react to the
+// touch itself (a dropdown opens on pointer down), nor on a chart, which shows a tooltip under the finger.
+// Plain content such as a table row is fine. The whole fingertip must clear them, since Chromium snaps a
+// touch to a clickable element within its radius.
+export function isDragSpot(point) {
+  const busy = 'a, button, input, select, textarea, label, summary, svg, canvas, video, iframe, [contenteditable=true], '
+    + '[role=button], [role=link], [role=combobox], [role=tab], [role=menuitem], [role=option], [role=checkbox], '
+    + '[role=radio], [role=slider], [role=switch]';
+  return [[0, 0], [-16, 0], [16, 0], [0, -16], [0, 16]].every(([dx, dy]) => {
+    const element = document.elementFromPoint(point.x + dx, point.y + dy);
+    return element && !element.closest(busy);
+  });
 }
 
 export function targetContext(element) {
