@@ -42,12 +42,12 @@
     {
       "action": "type",
       "selector": "#title",
-      "text": "Website — experiência 2026"
+      "text": "Website — 2026 experience"
     },
     {
       "action": "type",
       "selector": "#description",
-      "text": "Simplificar a navegação e preparar uma experiência clara para novos clientes."
+      "text": "Simplify navigation and prepare a clear experience for new customers."
     },
     {
       "action": "click",
@@ -96,7 +96,7 @@
     {
       "action": "type",
       "selector": "#note",
-      "text": "Protótipo revisado. Próximo passo: validar o formulário e preparar a apresentação."
+      "text": "Prototype reviewed. Next step: validate the form and prepare the presentation."
     },
     {
       "action": "click",

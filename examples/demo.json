@@ -2,7 +2,7 @@
   "url": "file:./demo.html",
   "steps": [
     { "action": "click", "selector": "#edit", "pause": 0.45 },
-    { "action": "type", "selector": "#title", "text": "Website — nova experiência", "pause": 0.4 },
+    { "action": "type", "selector": "#title", "text": "Website — a new experience", "pause": 0.4 },
     { "action": "click", "selector": "#save", "expect": "#success", "pause": 0.35 },
     { "action": "focus", "selector": "#project-name", "duration": 1.0, "pause": 0.25 }
   ]
