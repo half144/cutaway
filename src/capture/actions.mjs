@@ -296,7 +296,14 @@ export class ActionRunner {
 
     if (step.action === 'click' || step.action === 'type') {
       const alreadyFocused = step.action === 'type' && await locator.evaluate(element => element === document.activeElement);
+      // While Playwright listens for the chooser, the native dialog never opens and the files go straight in.
+      const chooser = step.file ? this.page.waitForEvent('filechooser') : null;
+      chooser?.catch(() => {});
       if (!alreadyFocused) await this.click(locator, focus, index, landing, step.action === 'click' && !step.expect, commit, step.hold);
+      if (chooser) {
+        const fileChooser = await chooser.catch(() => { throw new Error(`Step ${index + 1}: the click did not open a file chooser.`); });
+        await fileChooser.setFiles(step.file);
+      }
       await this.captureCursor(true);
     }
 

@@ -57,6 +57,7 @@ async function main() {
       throw error;
     }
     timings.exportSeconds = (performance.now() - start) / 1000;
+    process.stderr.write(`Video ready: ${result.output}\n`);
   }
   timings.totalSeconds = (performance.now() - beginning) / 1000;
   const workflow = { command, timings, note: 'CLI timings only; agent planning before invocation is not measured.' };

@@ -4,7 +4,7 @@ import { setTimeout as sleep } from 'node:timers/promises';
 import { chromium, devices } from 'playwright';
 import { loadPlan } from '../plan.mjs';
 import { ActionRunner } from './actions.mjs';
-import { isQuietSpot, waitForSettled, watchChanges } from './page-state.mjs';
+import { hideElements, invalidSelectors, isQuietSpot, waitForSettled, watchChanges } from './page-state.mjs';
 import { ScreencastRecorder } from './screencast.mjs';
 import { TouchRunner } from './touch.mjs';
 
@@ -76,7 +76,10 @@ export async function record(planPath, directory, { headed = false, storageState
       if (popup !== page) popupError = new Error('Popups are not supported in this version. Use a single-tab flow.');
     });
 
+    if (plan.hide) await page.addInitScript(hideElements, plan.hide);
     await page.goto(plan.url, { waitUntil: 'load' });
+    const invalid = plan.hide ? await page.evaluate(invalidSelectors, plan.hide) : [];
+    if (invalid.length) throw new Error(`hide takes CSS selectors; the browser rejected: ${invalid.join(', ')}`);
     await page.evaluate(() => document.fonts.ready);
     // Open on a still page: entrance animations and late layout finish before the first frame.
     await page.evaluate(watchChanges);
