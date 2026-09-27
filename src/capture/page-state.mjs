@@ -22,7 +22,8 @@ export function targetNeedsScroll(element) {
 
 // Glides the target's scroll container so the target (and the next target, when both fit) rests
 // a little above the middle, instead of snapping it to an edge as `block: 'nearest'` does.
-export async function scrollIntoComfort([element, companion]) {
+// `slowdown` stretches the glide for slow-motion capture; the render plays it back at real speed.
+export async function scrollIntoComfort([element, companion, slowdown = 1]) {
   function scroller(node) {
     for (let parent = node.parentElement; parent; parent = parent.parentElement) {
       if (/(auto|scroll|overlay)/.test(getComputedStyle(parent).overflowY) && parent.scrollHeight > parent.clientHeight + 1) return parent;
@@ -52,7 +53,7 @@ export async function scrollIntoComfort([element, companion]) {
   const distance = to - from;
   if (Math.abs(distance) < 1) return;
   // Longer distances take longer, but sublinearly, like Chromium's programmatic smooth scroll.
-  const duration = Math.min(1.3, 0.45 + Math.sqrt(Math.abs(distance)) / 45) * 1000;
+  const duration = Math.min(1.3, 0.45 + Math.sqrt(Math.abs(distance)) / 45) * 1000 * slowdown;
   // Quick departure and a long glide into place, like a wheel flick coming to rest.
   const curve = t => {
     const s = t ** 0.75;

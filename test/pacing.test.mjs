@@ -154,3 +154,17 @@ test('a caret blink counts as still; a toast appearing does not', async () => {
     await rm(directory, { recursive: true });
   }
 });
+
+test('slow-motion capture plays back at real speed, linearly, in every pacing mode', () => {
+  const source = {
+    duration: 8,
+    frames: [0, 1, 2, 3, 4, 5, 6].map(t => ({ t })),
+    scrolls: [{ start: 1, end: 5.2, automatic: true }],
+    slowMotion: [{ start: 1, end: 5, factor: 4 }],
+  };
+  for (const mode of ['balanced', 'original']) {
+    const { timeline, report } = paceTimeline(source, mode);
+    assert.deepEqual(timeline.frames.slice(1).map(frame => frame.t), [1, 1.25, 1.5, 1.75, 2, 3]);
+    assert.equal(report.slowMotionSeconds, 3);
+  }
+});

@@ -123,6 +123,14 @@ function findIdleSegments(timeline, still) {
   return removeOverlaps([...idle, ...staticSegments(timeline, still)]);
 }
 
+// Spans captured in slow motion (scrolls, so the screencast keeps up) play back at real speed. The
+// mapping is linear so the scroll keeps its own easing.
+function slowMotionSegments(timeline) {
+  return (timeline.slowMotion ?? []).map(({ start, end, factor }) => ({
+    start, end, duration: (end - start) / factor, kind: 'slow-motion', linear: true,
+  }));
+}
+
 // Integral of the minimum-jerk easing curve; speed and acceleration match at both seams.
 function integratedEase(t) {
   return t ** 4 * (2.5 - 3 * t + t * t);
@@ -151,6 +159,7 @@ function createTimeMap(segments) {
       const sourceDuration = segment.end - segment.start;
       const offset = time - segment.start;
       const outputStart = segment.start - removed;
+      if (segment.linear) return outputStart + offset * segment.duration / sourceDuration;
       const edge = segment.edge ?? preservedEdge;
       if (offset <= edge) return outputStart + offset;
       if (offset >= sourceDuration - edge) {
@@ -191,23 +200,22 @@ function remapTimeline(source, mapTime) {
 }
 
 export function paceTimeline(source, mode = 'balanced', still) {
-  if (mode === 'original') {
-    return { timeline: source, report: { mode, adjustedGaps: 0, savedSeconds: 0 } };
-  }
-
-  const segments = findIdleSegments(source, still);
-  const mapTime = createTimeMap(segments);
-  const timeline = remapTimeline(source, mapTime);
-  const savedSeconds = source.duration - timeline.duration;
+  const slowMotion = slowMotionSegments(source);
+  const gaps = (mode === 'original' ? [] : findIdleSegments(source, still))
+    .filter(gap => !slowMotion.some(span => span.start < gap.end && span.end > gap.start));
+  const segments = [...gaps, ...slowMotion].sort((a, b) => a.start - b.start);
+  const timeline = segments.length ? remapTimeline(source, createTimeMap(segments)) : source;
+  const slowMotionSeconds = slowMotion.reduce((sum, span) => sum + span.end - span.start - span.duration, 0);
   return {
     timeline,
     report: {
       mode,
-      adjustedGaps: segments.length,
-      savedSeconds: +savedSeconds.toFixed(3),
+      adjustedGaps: gaps.length,
+      savedSeconds: +(source.duration - timeline.duration - slowMotionSeconds).toFixed(3),
+      slowMotionSeconds: +slowMotionSeconds.toFixed(3),
       sourceDuration: source.duration,
       contentDuration: timeline.duration,
-      gaps: segments.map(segment => ({
+      gaps: gaps.map(segment => ({
         kind: segment.kind,
         sourceSeconds: +(segment.end - segment.start).toFixed(3),
         outputSeconds: +segment.duration.toFixed(3),

@@ -9,6 +9,10 @@ import {
 } from './page-state.mjs';
 
 // Buttons that commit something; a person hesitates a beat before pressing them.
+// Scrolls are captured this many times slower than they play back. The screencast delivers frames at
+// the compositor's pace, 11–50 fps at 2× while new content paints, so a real-time scroll steps visibly;
+// in slow motion every output frame gets its own capture. The render restores real speed.
+const scrollSlowdown = 4;
 const commitLabel = /\b(save|salvar|done|concluir|submit|enviar|send|delete|excluir|remove|remover|confirm|confirmar|publish|publicar|apply|aplicar|create|criar|pay|pagar)\b/i;
 
 function containsPoint(box, point) {
@@ -122,7 +126,10 @@ export class ActionRunner {
       // Bring the next target along when it fits, so consecutive steps don't each need a scroll.
       const next = await this.uniqueHandle(nextStep?.selector);
       const element = await locator.elementHandle();
-      await this.page.evaluate(scrollIntoComfort, [element, next]);
+      const slowMotion = { start: this.now(), factor: scrollSlowdown };
+      await this.page.evaluate(scrollIntoComfort, [element, next, scrollSlowdown]);
+      slowMotion.end = this.now();
+      (this.timeline.slowMotion ??= []).push(slowMotion);
       await Promise.all([element, next].filter(Boolean).map(handle => handle.dispose()));
       if (await locator.evaluate(targetNeedsScroll)) {
         await locator.evaluate(target => target.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' }));
@@ -228,13 +235,14 @@ export class ActionRunner {
     let tick = 1;
     while (progress < 1) {
       await sleep(Math.max(0, tick * 1000 / 60 - (performance.now() - beginning)));
-      progress = duration > 0 ? Math.min(1, (performance.now() - beginning) / (duration * 1000)) : 1;
+      progress = duration > 0 ? Math.min(1, (performance.now() - beginning) / (duration * scrollSlowdown * 1000)) : 1;
       // A wheel flick departs quickly and glides to rest rather than easing symmetrically.
       const next = step.y * ease(progress ** 0.75);
       await this.page.mouse.wheel(0, next - previous);
       previous = next;
       tick = Math.max(tick + 1, Math.ceil((performance.now() - beginning) * 60 / 1000));
     }
+    (this.timeline.slowMotion ??= []).push({ start: scroll.start, end: this.now(), factor: scrollSlowdown });
     // Wheel dispatch precedes compositor presentation; retain the settling frames.
     await sleep(100);
     scroll.end = this.now();

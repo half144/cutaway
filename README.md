@@ -4,9 +4,9 @@ A local tool that lets agents record web app demos with animated zoom, a smooth 
 
 ## Example
 
-https://github.com/user-attachments/assets/99199d3d-1066-4d4b-b7db-b0bda63ca106
+https://github.com/user-attachments/assets/3bd9af5a-d173-48a1-bcfd-838a1d5c9f93
 
-26 s, 1080p, 60 fps, unedited. Recorded from [examples/web-dashboard.json](examples/web-dashboard.json) on the [shadcn/ui example dashboard](https://ui.shadcn.com/view/new-york-v4/dashboard-01): the agent edits a target, assigns a reviewer, renames a section in its detail panel and switches the chart range. Zoom, cursor, pacing and background (Sonoma Horizon) are the tool's defaults.
+25 s, 1080p, 60 fps, unedited. Recorded from [examples/web-dashboard.json](examples/web-dashboard.json) on the [shadcn/ui example dashboard](https://ui.shadcn.com/view/new-york-v4/dashboard-01): the agent edits a target, assigns a reviewer, renames a section in its detail panel and switches the chart range. Zoom, cursor, pacing and background (Sonoma Horizon) are the tool's defaults.
 
 ## Try it
 
@@ -184,7 +184,7 @@ References studied: [Screen Studio — animations](https://screen.studio/guide/a
 - Records scripts run by the CLI itself in a single Chromium tab; it doesn't record the history of the work or attach to a tab another agent is already using.
 - Camera and cursor render at 60 fps by default. Interface capture follows the browser compositor's pace; 60 fps output doesn't guarantee 60 distinct app frames per second.
 - No audio, webcam, native windows, popups, drag-and-drop or visual timeline editing.
-- Page scrolling is captured as it happens; the temporal blur covers camera and cursor and doesn't synthesize in-between interface frames.
+- Scrolls are captured in 4× slow motion and played back at real speed: the browser delivers 11–50 fps while it paints new content at 2×, so a real-time capture stepped visibly; in slow motion every output frame gets its own capture (~200 fps effective in the dashboard demo). Other page animations are captured as they happen, and the temporal blur covers camera and cursor without synthesizing in-between interface frames.
 - Changing the output aspect ratio keeps the capture's aspect ratio and adds margin; there is no automatic reframing for vertical social formats yet.
 - Uses Skia and libx264 on the CPU, in parallel processes. On an Apple M4 a 26 s demo exports in ~46 s at the default 1080p60 `high`, and in ~17 s at 1280×720 with `--quality standard` (previously ~140 s). GPU composition and a hardware encoder still need implementation and benchmarking.
 - New captures record arrow, hand and I-beam from the DOM. Custom canvas/iframe cursors aren't captured; older sessions use the arrow.
