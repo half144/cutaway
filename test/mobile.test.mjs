@@ -278,7 +278,7 @@ test('a phone recording frames subjects by height and keeps the whole screen wid
 const ffmpegReady = spawnSync('ffprobe', ['-version']).status === 0;
 
 test('a phone recording exports as a vertical video with the phone drawn around the page', { skip: !ffmpegReady }, async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'agent-screen-test-'));
+  const dir = await mkdtemp(join(tmpdir(), 'cutaway-test-'));
   try {
     await mkdir(join(dir, 'frames'));
     const canvas = createCanvas(393, 764);
@@ -308,7 +308,7 @@ test('a phone recording exports as a vertical video with the phone drawn around 
 });
 
 test('the device window needs a phone recording', async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'agent-screen-test-'));
+  const dir = await mkdtemp(join(tmpdir(), 'cutaway-test-'));
   try {
     await writeFile(join(dir, 'timeline.json'), JSON.stringify({ status: 'complete', frames: [{ t: 0 }], viewport: { width: 1440, height: 810 } }));
     await assert.rejects(render(dir, { window: 'device' }), /phone/);

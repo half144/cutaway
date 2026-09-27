@@ -27,7 +27,7 @@ test('zoom and motion blur can be disabled independently', () => {
 });
 
 test('failed captures cannot be exported as successful videos', async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'agent-screen-test-'));
+  const dir = await mkdtemp(join(tmpdir(), 'cutaway-test-'));
   try {
     await writeFile(join(dir, 'timeline.json'), JSON.stringify({ status: 'failed', frames: [{ t: 0 }] }));
     await assert.rejects(render(dir), /incomplete recording/);
@@ -39,7 +39,7 @@ test('failed captures cannot be exported as successful videos', async () => {
 const ffmpegReady = spawnSync('ffprobe', ['-version']).status === 0;
 
 test('exports keep sRGB colors and tag them 1-13-1 so QuickTime shows no gamma shift', { skip: !ffmpegReady }, async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'agent-screen-test-'));
+  const dir = await mkdtemp(join(tmpdir(), 'cutaway-test-'));
   try {
     const output = join(dir, 'colors.mp4');
     const colors = [[255, 255, 255], [0, 0, 0], [128, 128, 128], [243, 244, 246]];
@@ -84,7 +84,7 @@ function probeVideo(path) {
 }
 
 test('segments join into one video with every frame in order and the color tags', { skip: !ffmpegReady }, async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'agent-screen-test-'));
+  const dir = await mkdtemp(join(tmpdir(), 'cutaway-test-'));
   try {
     const parts = [[[255, 0, 0], 30], [[0, 0, 255], 45]];
     const paths = [];
@@ -110,7 +110,7 @@ test('segments join into one video with every frame in order and the color tags'
 });
 
 test('a recording renders across processes into one complete video', { skip: !ffmpegReady }, async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'agent-screen-test-'));
+  const dir = await mkdtemp(join(tmpdir(), 'cutaway-test-'));
   try {
     await mkdir(join(dir, 'frames'));
     const canvas = createCanvas(640, 360);

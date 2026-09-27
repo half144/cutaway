@@ -130,7 +130,7 @@ test('original pacing preserves the source timeline object', () => {
 });
 
 test('a caret blink counts as still; a toast appearing does not', async () => {
-  const directory = await mkdtemp(join(tmpdir(), 'agent-screen-still-'));
+  const directory = await mkdtemp(join(tmpdir(), 'cutaway-still-'));
   try {
     const draw = async (name, paint) => {
       const canvas = createCanvas(1440, 810);

@@ -1,11 +1,11 @@
 {
-  "name": "agent-screen-studio",
+  "name": "cutaway",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "description": "Local cinematic browser recordings for AI agents",
   "bin": {
-    "agent-screen": "./src/cli.mjs"
+    "cutaway": "./src/cli.mjs"
   },
   "scripts": {
     "test": "node --test test/*.test.mjs",
