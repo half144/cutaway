@@ -295,6 +295,10 @@ export function planShots(timeline, { scene, level }) {
     }
     if (shot.releaseAt - shot.startAt < minShot * 0.75 || shot.zoom < 1.05) {
       report.droppedShots++;
+      // The close-up handing over to a shot too brief to keep holds on in its place, rather than
+      // leaving a gap that pumps out to the overview and straight back in.
+      const previous = kept.at(-1);
+      if (previous?.connected && previous.releaseAt === shot.startAt && shot.zoom >= 1.05) previous.releaseAt = shot.releaseAt;
       continue;
     }
     shot.id = kept.length;

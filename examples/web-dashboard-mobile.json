@@ -1,0 +1,17 @@
+{
+  "url": "https://ui.shadcn.com/view/new-york-v4/dashboard-01",
+  "device": "iPhone 15 Pro",
+  "timeout": 15000,
+  "steps": [
+    { "action": "type", "selector": "[id=\"1-target\"]", "text": "24" },
+    { "action": "press", "key": "Enter", "expect": "[data-sonner-toast]" },
+    { "action": "tap", "selector": "[id=\"8-reviewer\"]" },
+    { "action": "tap", "selector": "role=option[name=\"Eddie Lake\"]" },
+    { "action": "tap", "selector": "role=button[name=\"Innovation and Advantages\"]", "expect": "role=dialog" },
+    { "action": "type", "selector": "#header", "text": "Innovation (final)" },
+    { "action": "type", "selector": "#limit", "text": "20" },
+    { "action": "tap", "selector": "role=button[name=\"Done\"]" },
+    { "action": "tap", "selector": "role=combobox[name=\"Select a value\"]" },
+    { "action": "tap", "selector": "role=option[name=\"Last 30 days\"]" }
+  ]
+}

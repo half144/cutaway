@@ -2,13 +2,13 @@ import { setTimeout as sleep } from 'node:timers/promises';
 import { clamp, ease, unitNoise } from '../motion.mjs';
 import { ActionRunner, scrollSlowdown } from './actions.mjs';
 import { gaussian, movementDuration, pointingDifficulty } from './pacing.mjs';
-import { scrollIntoComfort, targetNeedsScroll } from './page-state.mjs';
+import { isDragSpot, scrollIntoComfort, targetNeedsScroll } from './page-state.mjs';
 
 // Chromium starts scrolling only once a finger has moved this far (CSS pixels), so a drag is that much
 // longer than the scroll it makes. Measured: a 400 px drag scrolls 385 px.
 const touchSlop = 15;
 // A drag covers at most this share of the scroll area; longer scrolls take several strokes.
-const dragShare = 0.6;
+const dragShare = 0.75;
 // Contact radius of a fingertip, in CSS pixels.
 const fingertip = 11;
 // Quick departure and a long glide to rest. A slow start would hold the finger still long enough
@@ -94,7 +94,8 @@ export class TouchRunner extends ActionRunner {
       numeric: /^(number|tel)$/.test(element.type) || /^(numeric|decimal|tel)$/.test(element.inputMode),
     }));
     this.secret = field.secret;
-    focus.keyboard = field.numeric ? 'numeric' : 'text';
+    // Text without letters is typed on the 123 plane, as someone would switch to it first.
+    focus.keyboard = field.numeric ? 'numeric' : /\p{L}/u.test(text) ? 'text' : 'numbers';
     focus.keys = [];
     await super.type(locator, text, focus, index);
   }
@@ -104,16 +105,35 @@ export class TouchRunner extends ActionRunner {
     return super.typeCharacter(character);
   }
 
-  // One stroke that scrolls `dy` (positive scrolls down, so the finger moves up) inside `area`, captured
-  // in slow motion like wheel scrolls. The finger comes to rest before lifting, so the page stops with
-  // it instead of flinging on.
-  async drag(dy, area, seed, seconds) {
-    const length = Math.abs(dy) + touchSlop;
-    const direction = Math.sign(dy);
-    const from = {
-      x: area.x + area.width * (0.5 + 0.16 * unitNoise(seed * 97 + 3)),
-      y: area.y + area.height / 2 + direction * length / 2,
+  // One stroke that scrolls `delta` along `axis` inside `area` (positive scrolls down or right, so the
+  // finger moves up or left), captured in slow motion like wheel scrolls. The finger comes to rest before
+  // lifting, so the page stops with it instead of flinging on.
+  async drag(delta, area, seed, seconds, axis = 'y') {
+    const length = Math.abs(delta) + touchSlop;
+    const direction = Math.sign(delta);
+    const vertical = axis === 'y';
+    let middle = vertical ? area.y + area.height / 2 : area.x + area.width / 2;
+    let lane = vertical ? area.x + area.width * (0.5 + 0.16 * unitNoise(seed * 97 + 3)) : area.y + area.height / 2;
+    const at = (travel, sideways) => {
+      const along = middle + direction * length / 2 - direction * length * travel;
+      return vertical ? { x: lane + sideways, y: along } : { x: along, y: lane + sideways };
     };
+    // The finger lands where it sets nothing off, such as a chart tooltip or a button, when the stroke
+    // can move sideways or along the area to find such a spot. Near the screen's edges, where a thumb
+    // often swipes, a page usually has bare margin.
+    const slack = Math.max(0, ((vertical ? area.height : area.width) - length) / 2 - 8);
+    const lanes = vertical
+      ? [lane, ...[0.3, 0.7, 0.15, 0.85].map(share => area.x + area.width * share), area.x + area.width - 16, area.x + 16]
+      : [lane];
+    const starts = [0, slack / 2, -slack / 2, slack, -slack].flatMap(shift => lanes.map(candidate => [candidate, middle + shift]));
+    let quiet = false;
+    for (const start of starts) {
+      [lane, middle] = start;
+      quiet = await this.page.evaluate(isDragSpot, at(0, 0));
+      if (quiet) break;
+    }
+    if (!quiet) [lane, middle] = starts[0];
+    const from = at(0, 0);
     // A thumb pivots at its base, so the stroke bows a little sideways.
     const bow = length * (0.03 + 0.03 * unitNoise(seed * 97 + 5));
     const duration = (seconds ?? clamp(0.28 + length / 1400, 0.35, 0.8)) * scrollSlowdown;
@@ -127,7 +147,7 @@ export class TouchRunner extends ActionRunner {
       await sleep(1000 / 60);
       progress = Math.min(1, (performance.now() - beginning) / (duration * 1000));
       const travel = dragCurve(progress);
-      point = { x: from.x + bow * Math.sin(Math.PI * travel), y: from.y - direction * length * travel };
+      point = at(travel, bow * Math.sin(Math.PI * travel));
       await this.touch('touchMove', point);
       points.push({ t: this.now(), ...point });
     }
@@ -139,22 +159,28 @@ export class TouchRunner extends ActionRunner {
     this.pointer = point;
   }
 
-  async swipe(distance, area, seconds) {
+  async swipe(distance, area, seconds, axis = 'y') {
     // A sliver of a scroll area still gets strokes a finger could make.
-    const count = Math.ceil(Math.abs(distance) / Math.max(80, area.height * dragShare - touchSlop));
+    const reach = (axis === 'y' ? area.height : area.width) * dragShare - touchSlop;
+    const count = Math.ceil(Math.abs(distance) / Math.max(80, reach));
     for (let i = 0; i < count; i++) {
       // Lifting and placing the thumb again for the next stroke.
       if (i) await sleep((0.14 + 0.1 * unitNoise(this.movementIndex * 131 + i)) * 1000);
-      await this.drag(distance / count, area, this.movementIndex++, seconds && seconds / count);
+      await this.drag(distance / count, area, this.movementIndex++, seconds && seconds / count, axis);
     }
   }
 
-  // A person scrolls a target into view with their finger, and drags once more if it fell short;
-  // the page does not glide on its own.
+  // A person scrolls a target into view with their finger: down the page, then along a table wider
+  // than the screen, and once more if the page stopped short. The page does not glide on its own.
   async bringIntoView(element, next) {
-    for (let stroke = 0; stroke < 2 && (stroke === 0 || await element.evaluate(targetNeedsScroll)); stroke++) {
-      const { distance, area } = await this.page.evaluate(scrollIntoComfort, [element, next, 1, true]);
-      if (Math.abs(distance) >= 1) await this.swipe(distance, area);
+    const measure = () => this.page.evaluate(scrollIntoComfort, [element, next, 1, true]);
+    const { distance, area } = await measure();
+    if (Math.abs(distance) >= 1) await this.swipe(distance, area);
+    const { across } = await measure();
+    if (across && Math.abs(across.distance) >= 1) await this.swipe(across.distance, across.area, undefined, 'x');
+    if (await element.evaluate(targetNeedsScroll)) {
+      const retry = await measure();
+      if (Math.abs(retry.distance) >= 1) await this.swipe(retry.distance, retry.area);
     }
   }
 

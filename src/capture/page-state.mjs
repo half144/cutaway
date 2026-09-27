@@ -24,7 +24,8 @@ export function targetNeedsScroll(element) {
 // a little above the middle, instead of snapping it to an edge as `block: 'nearest'` does.
 // `slowdown` stretches the glide for slow-motion capture; the render plays it back at real speed.
 // With `measure`, nothing scrolls: it returns the distance and the visible area of the container,
-// for a finger to drag instead.
+// for a finger to drag instead, and `across`, the sideways drag a table wider than the screen needs
+// to show a target it clips.
 export async function scrollIntoComfort([element, companion, slowdown = 1, measure = false]) {
   function scroller(node) {
     for (let parent = node.parentElement; parent; parent = parent.parentElement) {
@@ -55,7 +56,20 @@ export async function scrollIntoComfort([element, companion, slowdown = 1, measu
   const distance = to - from;
   if (measure) {
     const left = Math.max(0, frame.left);
-    return { distance, area: { x: left, y: top, width: Math.min(innerWidth, frame.right) - left, height: view } };
+    let across = null;
+    for (let parent = element.parentElement; parent; parent = parent.parentElement) {
+      if (!/(auto|scroll)/.test(getComputedStyle(parent).overflowX) || parent.scrollWidth <= parent.clientWidth + 1) continue;
+      const rect = parent.getBoundingClientRect();
+      const x = Math.max(0, rect.left);
+      const width = Math.min(innerWidth, rect.right) - x;
+      if (box.left >= x + 8 && box.right <= x + width - 8) break;
+      // Centered in the container, dragged along the target's own row.
+      const to = Math.max(0, Math.min(parent.scrollWidth - parent.clientWidth,
+        parent.scrollLeft + (box.left + box.right) / 2 - (x + width / 2)));
+      across = { distance: to - parent.scrollLeft, area: { x, y: box.top + box.height / 2 - 20, width, height: 40 } };
+      break;
+    }
+    return { distance, area: { x: left, y: top, width: Math.min(innerWidth, frame.right) - left, height: view }, across };
   }
   if (Math.abs(distance) < 1) return;
   // Longer distances take longer, but sublinearly, like Chromium's programmatic smooth scroll.
@@ -212,6 +226,20 @@ export function isQuietSpot(point) {
   const busy = 'a, button, input, select, textarea, label, summary, svg, canvas, video, iframe, [title], [data-state], '
     + '[role=button], [role=link], [role=tab], [role=menuitem], [role=option], [role=checkbox], [role=radio], [role=slider], [role=switch]';
   return !element.closest(busy) && getComputedStyle(element).cursor !== 'pointer';
+}
+
+// Where a finger can start a drag without setting anything off: not on a control, which may react to the
+// touch itself (a dropdown opens on pointer down), nor on a chart, which shows a tooltip under the finger.
+// Plain content such as a table row is fine. The whole fingertip must clear them, since Chromium snaps a
+// touch to a clickable element within its radius.
+export function isDragSpot(point) {
+  const busy = 'a, button, input, select, textarea, label, summary, svg, canvas, video, iframe, [contenteditable=true], '
+    + '[role=button], [role=link], [role=combobox], [role=tab], [role=menuitem], [role=option], [role=checkbox], '
+    + '[role=radio], [role=slider], [role=switch]';
+  return [[0, 0], [-16, 0], [16, 0], [0, -16], [0, 16]].every(([dx, dy]) => {
+    const element = document.elementFromPoint(point.x + dx, point.y + dy);
+    return element && !element.closest(busy);
+  });
 }
 
 export function targetContext(element) {

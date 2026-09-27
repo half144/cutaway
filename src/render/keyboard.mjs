@@ -2,8 +2,9 @@ import { clamp, easeOut } from '../motion.mjs';
 import { uiFont } from './toolbar.mjs';
 // An iOS 26 keyboard without the suggestion bar, in points: a light panel with rounded top corners and
 // white keys, special keys included, then the strip with the globe above the home indicator. Four rows
-// of 42 pt keys, 54 pt apart.
-const height = 291;
+// of 42 pt keys, 54 pt apart, below a 28 pt margin that keeps the first row clear of the rounded corners.
+const height = 311;
+const topPadding = 28;
 const rowPitch = 54;
 const keyHeight = 42;
 const keyRadius = 8.5;
@@ -39,15 +40,18 @@ export function keyboardSpans(timeline) {
     const next = touches.find(touch => touch.t > keys.at(-1).t);
     const close = Math.max(keys.at(-1).t + 0.15, Math.min(keys.at(-1).t + (enter ? 0.25 : 0.45), (next?.t ?? Infinity) - closeSeconds - 0.05));
     const open = Math.min(tap?.up ?? Infinity, typingStart - openSeconds);
-    const lift = { t: open, lift: clamp(focus.y + focus.height + 10 - top, 0, Math.max(0, focus.y - 12)), focus };
+    const layout = focus.keyboard ?? 'text';
+    const lift = { t: open, lift: clamp(focus.y + focus.height + 10 - top, 0, Math.max(0, focus.y - 12)), focus, layout };
     const previous = spans.at(-1);
     const hidden = previous && tap && tap.points[0].y - previous.lifts.at(-1).lift >= top;
-    if (previous && open - previous.close < 0.6 && previous.layout === (focus.keyboard ?? 'text') && !hidden) {
+    // Letters and the 123 plane are one keyboard that switches; a number pad is another.
+    const sameKeyboard = previous && (previous.lifts.at(-1).layout === 'numeric') === (layout === 'numeric');
+    if (previous && open - previous.close < 0.6 && sameKeyboard && !hidden) {
       previous.close = close;
       previous.keys.push(...keys);
       previous.lifts.push(lift);
     } else {
-      spans.push({ open, close, layout: focus.keyboard ?? 'text', lifts: [lift], keys });
+      spans.push({ open, close, lifts: [lift], keys });
     }
   }
   return spans;
@@ -95,24 +99,33 @@ export function keyboardAt(spans, time) {
   const index = span.keys.findLastIndex(key => key.t <= time);
   const key = span.keys[index];
   const pressed = key && time - key.t < Math.min(pressSeconds, (span.keys[index + 1]?.t ?? Infinity) - key.t) ? key.key : null;
-  return { shown: +shown.toFixed(4), lift: +(liftAt(span, time) * (closing ? shown : 1)).toFixed(3), layout: span.layout, pressed };
+  const { layout } = span.lifts.findLast(step => step.t <= time) ?? span.lifts[0];
+  return { shown: +shown.toFixed(4), lift: +(liftAt(span, time) * (closing ? shown : 1)).toFixed(3), layout, pressed };
 }
 
-function letterRows(width) {
+// Letters, or with `numbers` the plane the 123 key switches to: digits and punctuation.
+function letterRows(width, numbers = false) {
   const keyWidth = (width - side * 2 - gap * 9) / 10;
   const pitch = keyWidth + gap;
-  const row = (letters, x, y) => [...letters].map((letter, index) => ({ id: letter, label: letter, x: x + index * pitch, y, width: keyWidth }));
+  const row = (letters, x, y, size = keyWidth, step = pitch) => [...letters]
+    .map((letter, index) => ({ id: letter, label: letter, x: x + index * step, y, width: size }));
   const specialWidth = keyWidth * 1.3;
   const small = keyWidth * 1.25;
   const returnWidth = keyWidth * 2.6;
   const bottom = rowPitch * 3;
+  // The five punctuation keys widen to fill the row between its special keys.
+  const wide = (width - side * 2 - specialWidth * 2 - gap * 8) / 5;
+  const middle = numbers
+    ? [...row('1234567890', side, 0), ...row('-/:;()$&@"', side, rowPitch),
+      { id: 'symbols', label: '#+=', x: side, y: rowPitch * 2, width: specialWidth, special: true, small: true },
+      ...row(".,?!'", side + specialWidth + gap * 2, rowPitch * 2, wide, wide + gap)]
+    : [...row('qwertyuiop', side, 0), ...row('asdfghjkl', side + pitch / 2, rowPitch),
+      { id: 'shift', x: side, y: rowPitch * 2, width: specialWidth, special: true },
+      ...row('zxcvbnm', (width - 7 * keyWidth - 6 * gap) / 2, rowPitch * 2)];
   return [
-    ...row('qwertyuiop', side, 0),
-    ...row('asdfghjkl', side + pitch / 2, rowPitch),
-    { id: 'shift', x: side, y: rowPitch * 2, width: specialWidth, special: true },
-    ...row('zxcvbnm', (width - 7 * keyWidth - 6 * gap) / 2, rowPitch * 2),
+    ...middle,
     { id: 'delete', x: width - side - specialWidth, y: rowPitch * 2, width: specialWidth, special: true },
-    { id: 'numbers', label: '123', x: side, y: bottom, width: small, special: true, small: true },
+    { id: 'plane', label: numbers ? 'ABC' : '123', x: side, y: bottom, width: small, special: true, small: true },
     { id: 'emoji', x: side + small + gap, y: bottom, width: small, special: true },
     { id: ' ', x: side + small * 2 + gap * 2, y: bottom, width: width - side * 2 - small * 2 - returnWidth - gap * 3 },
     { id: '\n', glyph: 'return', x: width - side - returnWidth, y: bottom, width: returnWidth, special: true },
@@ -239,8 +252,8 @@ export function drawKeyboard(context, screen, unit, state, dark) {
   context.beginPath();
   context.roundRect(screen.x, top, screen.width, height * unit, [panelRadius * unit, panelRadius * unit, 0, 0]);
   context.fill();
-  const keys = state.layout === 'numeric' ? numberPad(width) : letterRows(width);
-  const origin = { x: screen.x, y: top + 8 * unit };
+  const keys = state.layout === 'numeric' ? numberPad(width) : letterRows(width, state.layout === 'numbers');
+  const origin = { x: screen.x, y: top + topPadding * unit };
   const pressed = keyFor(state.pressed, keys);
   context.textAlign = 'center';
   context.textBaseline = 'middle';

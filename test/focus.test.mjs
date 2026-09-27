@@ -318,3 +318,14 @@ test('the drawn pointer glides through a spring like Screen Studio, yet sits exa
   });
   assert.ok(accel(frames.slice(55, 120)) < accel(raw.slice(55, 120)), 'smoother than tracing the hand');
 });
+
+test('a close-up whose connected shot is too brief to keep holds until the next one instead of pumping', () => {
+  const focuses = [
+    click(1, { result: { t: 3, x: 400, y: 200, width: 900, height: 500 } }),
+    { t: 3.5, readyAt: 3.4, end: 4.5, interactionEnd: 4.5, typingStart: 3.6, action: 'type', x: 600, y: 360, width: 200, height: 36 },
+  ];
+  const { shots, report } = plan({ focuses, clicks: [{ t: 1.15 }] });
+  assert.equal(report.droppedShots, 1, 'the shot widening onto the result lasts under 0.9 s');
+  assert.equal(shots.length, 2);
+  assert.equal(shots[0].releaseAt, shots[1].startAt);
+});

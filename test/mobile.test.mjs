@@ -44,7 +44,7 @@ test('swipe is a scroll and hold is a long press on a tap', () => {
 function touchRunner(time = () => 1) {
   const sent = [];
   const session = { send: async (method, params) => sent.push({ method, ...params }) };
-  const page = { viewportSize: () => ({ width: 393, height: 764 }) };
+  const page = { viewportSize: () => ({ width: 393, height: 764 }), evaluate: async () => true };
   const timeline = { points: [], clicks: [], scrolls: [], focuses: [] };
   return { runner: new TouchRunner(page, timeline, time, session), sent, timeline };
 }
@@ -94,8 +94,25 @@ test('a scroll longer than a comfortable stroke becomes several drags', async ()
   const drags = [];
   runner.drag = async dy => drags.push(dy);
   await runner.swipe(-1000, { x: 0, y: 0, width: 393, height: 500 });
-  assert.equal(drags.length, 4);
-  assert.ok(drags.every(dy => dy === -250));
+  assert.equal(drags.length, 3, 'strokes of at most 75% of the area');
+  assert.ok(drags.every(dy => Math.abs(dy + 1000 / 3) < 1e-9));
+});
+
+test('a drag starts where the finger sets nothing off', async () => {
+  const { runner, sent } = touchRunner();
+  // Only the right side of the screen is quiet, as when a chart fills the middle.
+  runner.page.evaluate = async (_, point) => point.x > 250;
+  await runner.drag(100, { x: 0, y: 0, width: 393, height: 764 }, 0, 0.05);
+  assert.ok(sent[0].touchPoints[0].x > 250);
+});
+
+test('a table wider than the screen is dragged sideways along the target row', async () => {
+  const { runner, sent } = touchRunner();
+  await runner.drag(240, { x: 17, y: 400, width: 359, height: 40 }, 0, 0.05, 'x');
+  const points = sent.filter(event => event.method === 'Input.dispatchTouchEvent' && event.touchPoints.length)
+    .map(event => event.touchPoints[0]);
+  assert.ok(Math.abs(points[0].x - points.at(-1).x - 255) < 1e-9, 'scrolling right drags the finger left, 15 px farther');
+  assert.ok(points.every(point => Math.abs(point.y - 420) < 20), 'the finger stays on the row');
 });
 
 test('a touch indicator lands, follows the finger and fades out after it lifts', () => {
@@ -158,7 +175,7 @@ test('the keyboard rises with the tap on the field, lifts a covered field and is
   const [span] = keyboardSpans(timeline);
   assert.equal(span.open, 2.1);
   assert.equal(span.close, 3.75, 'stays for the return key');
-  assert.equal(span.lifts[0].lift, 600 + 48 + 10 - (764 + 34 - 291));
+  assert.equal(span.lifts[0].lift, 600 + 48 + 10 - (764 + 34 - 311));
   assert.equal(keyboardAt([span], 2.55).pressed, 'O');
   assert.equal(keyboardAt([span], 2.75).pressed, 'i');
   assert.equal(keyboardAt([span], 3).pressed, null);
@@ -184,12 +201,12 @@ test('typing on into a field the raised page shows keeps the keyboard up and mov
   const timeline = twoFields(460);
   const spans = keyboardSpans(timeline);
   assert.equal(spans.length, 1);
-  assert.deepEqual(spans[0].lifts.map(step => step.lift), [0, 460 + 48 + 10 - 507]);
+  assert.deepEqual(spans[0].lifts.map(step => step.lift), [0, 460 + 48 + 10 - 487]);
   assert.equal(keyboardAt(spans, 1.5).lift, 0, 'the first field is not lifted while it is typed into');
-  assert.equal(keyboardAt(spans, 2.6).lift, 460 + 48 + 10 - 507);
+  assert.equal(keyboardAt(spans, 2.6).lift, 460 + 48 + 10 - 487);
   const [first, second] = keyboardFocuses(timeline, spans);
   assert.equal(first.y, 50);
-  assert.equal(second.y, 460 - (460 + 48 + 10 - 507));
+  assert.equal(second.y, 460 - (460 + 48 + 10 - 487));
 });
 
 test('a field tapped where the keyboard covers it gets the keyboard back after the tap, not over it', () => {
@@ -209,6 +226,19 @@ test('a tap made while the page is raised shows where the page showed it', () =>
   assert.ok(lift > 100);
   assert.equal(liftedTouches(timeline.touches, spans)[1].points[0].y, 460 - 151 - lift);
   assert.equal(liftedTouches(timeline.touches, spans)[0].points[0].y, 70, 'the tap that opened the keyboard stays where the finger was');
+});
+
+test('digits typed right after words switch the same keyboard to its 123 plane', () => {
+  const timeline = twoFields(460);
+  timeline.focuses[1].keyboard = 'numbers';
+  timeline.focuses[1].keys = [{ t: 2.4, key: '2' }];
+  const spans = keyboardSpans(timeline);
+  assert.equal(spans.length, 1, 'the keyboard stays up');
+  assert.equal(keyboardAt(spans, 1.6).layout, 'text');
+  assert.equal(keyboardAt(spans, 2.45).layout, 'numbers');
+  assert.equal(keyboardAt(spans, 2.45).pressed, '2');
+  timeline.focuses[1].keyboard = 'numeric';
+  assert.equal(keyboardSpans(timeline).length, 2, 'a number pad is another keyboard');
 });
 
 test('the keyboard leaves before a tap that follows typing closely', () => {
