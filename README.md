@@ -1,16 +1,16 @@
 # Agent Screen
 
-Ferramenta local para agentes gravarem demonstrações de aplicações web com zoom animado, cursor suave e composição de vídeo. Primeira versão funcional: uma CLI, uma skill e um exemplo completo. A referência visual é o Screen Studio; este projeto não é afiliado a ele e ainda não oferece paridade com o editor.
+A local tool that lets agents record web app demos with animated zoom, a smooth cursor and video composition. First working version: a CLI, a skill and a complete example. Screen Studio is the visual reference; this project is not affiliated with it and does not yet match its editor.
 
-## Exemplo
+## Example
 
-[![Demonstração gravada pelo Agent Screen no dashboard de exemplo do shadcn/ui](docs/media/web-dashboard.jpg)](docs/media/web-dashboard.mp4)
+https://github.com/user-attachments/assets/893c92ce-2b43-4753-9308-9c0d127e1306
 
-Clique na imagem para ver o vídeo (27 s, 1080p, 60 fps). Foi gravado sem edição a partir de [examples/web-dashboard.json](examples/web-dashboard.json), no [dashboard de exemplo do shadcn/ui](https://ui.shadcn.com/view/new-york-v4/dashboard-01): o agente troca o período do gráfico, seleciona uma linha, edita uma meta, abre o painel de detalhes e esconde uma coluna. Zoom, cursor, ritmo e fundo (Sonoma Horizon) são os padrões da ferramenta.
+27 s, 1080p, 60 fps, unedited. Recorded from [examples/web-dashboard.json](examples/web-dashboard.json) on the [shadcn/ui example dashboard](https://ui.shadcn.com/view/new-york-v4/dashboard-01): the agent switches the chart range, selects a row, edits a target, opens the detail panel and hides a column. Zoom, cursor, pacing and background (Sonoma Horizon) are the tool's defaults.
 
-## Experimentar
+## Try it
 
-Requer Node.js 22+, FFmpeg no PATH e Chromium do Playwright.
+Requires Node.js 22+, FFmpeg on the PATH and Playwright's Chromium.
 
 ```sh
 npm ci
@@ -18,23 +18,23 @@ npx playwright install chromium
 npm run demo
 ```
 
-O exemplo abre uma aplicação fictícia local, edita o nome de um projeto e mostra o resultado. [examples/web-dashboard.json](examples/web-dashboard.json) grava um app real na web, o dashboard de exemplo do shadcn/ui: muda o período do gráfico, edita uma linha da tabela, abre o painel de detalhes e esconde uma coluna. Tudo acontece localmente no navegador, mas o exemplo depende de o site estar no ar e de os rótulos não mudarem. O MP4 fica em `recordings/demo/video.mp4`. Use uma pasta nova ao repetir a gravação:
+The demo opens a local mock app, edits a project name and shows the result. [examples/web-dashboard.json](examples/web-dashboard.json) records a real web app, the shadcn/ui example dashboard: it changes the chart range, edits a table row, opens the detail panel and hides a column. Everything runs locally in the browser, but the example depends on the site being up and its labels staying the same. The MP4 is written to `recordings/demo/video.mp4`. Use a new folder when recording again:
 
 ```sh
-node src/cli.mjs record examples/demo.json --out recordings/minha-demo
+node src/cli.mjs record examples/demo.json --out recordings/my-demo
 ```
 
-Instalar a skill no Codex:
+Install the skill in Codex:
 
 ```sh
 node scripts/install-skill.mjs
 ```
 
-O instalador cria um link para `skills/agent-screen` em `$CODEX_HOME/skills` (ou `~/.codex/skills`). A pasta deste projeto precisa permanecer disponível. Ele não substitui uma skill existente. A skill pode ser invocada como `$agent-screen` quando o ambiente recarregar a lista de skills.
+The installer links `skills/agent-screen` into `$CODEX_HOME/skills` (or `~/.codex/skills`). This project folder must stay available. It does not replace an existing skill. The skill can be invoked as `$agent-screen` once the environment reloads its skill list.
 
-## Roteiros para agentes
+## Scripts for agents
 
-O agente inspeciona a aplicação, identifica os seletores e escreve um JSON como [examples/demo.json](examples/demo.json). A CLI executa o roteiro em um contexto Chromium isolado. Não usa outro modelo de IA, conta de serviço ou upload.
+The agent inspects the app, finds the selectors and writes a JSON file like [examples/demo.json](examples/demo.json). The CLI runs the script in an isolated Chromium context. It uses no other AI model, service account or upload.
 
 ```json
 {
@@ -42,194 +42,196 @@ O agente inspeciona a aplicação, identifica os seletores e escreve um JSON com
   "viewport": { "width": 1440, "height": 810 },
   "steps": [
     { "action": "click", "selector": "#edit", "pause": 1 },
-    { "action": "type", "selector": "#title", "text": "Novo título" },
+    { "action": "type", "selector": "#title", "text": "New title" },
     { "action": "click", "selector": "#save", "expect": "#saved-message" },
     { "action": "focus", "selector": "#updated-title", "duration": 1.5 }
   ]
 }
 ```
 
-| Ação | Parâmetros | Comportamento |
+| Action | Parameters | Behavior |
 | --- | --- | --- |
-| `click` | `selector` | Move o cursor como uma pessoa que mira, clica e espera a interface assentar |
-| `type` | `selector`, `text` | Foca o campo, limpa o conteúdo existente e digita em ritmo humano; evita reclicar no campo já focado |
-| `focus` | `selector`, `duration` | Enquadra um elemento sem clicar; regiões altas são lidas a partir do topo |
-| `scroll` | `y`, `duration` | Rolagem relativa em pixels: sai rápido e desliza até parar |
-| `press` | `key` | Atalho ou tecla no elemento atualmente focado; combinações com modificador aparecem no vídeo |
-| `wait` | `duration` | Pausa em segundos |
+| `click` | `selector` | Moves the cursor like a person aiming, clicks and waits for the interface to settle |
+| `type` | `selector`, `text` | Focuses the field, clears existing content and types at a human rhythm; doesn't re-click a field that already has focus |
+| `focus` | `selector`, `duration` | Frames an element without clicking; tall regions are read from the top |
+| `scroll` | `y`, `duration` | Relative scroll in pixels: starts fast and glides to a stop |
+| `press` | `key` | Shortcut or key on the currently focused element; modifier combos appear in the video |
+| `wait` | `duration` | Pause in seconds |
 
-Cada passo aceita `pause` (segundos após a ação) e `expect` (seletor que deve ficar visível). Sem `pause`, a captura escolhe o ritmo: depois de cliques e teclas espera animações e mudanças do DOM terminarem (até 0,6 s) e registra a área da página que mudou; em seguida vem um respiro curto e variável, como o de uma pessoa, e não uma batida fixa. Um resultado de `expect` fica em tela por 0,6 s + 0,15 s por palavra do seu título (0,8–1,6 s), tempo de registrar a mudança sem ler o painel inteiro; se o passo seguinte age dentro do resultado, a pausa é curta. A câmera enquadra o resultado junto com o controle clicado quando ambos cabem, ou vai até ele; um resultado grande (página, diálogo) é mostrado na visão geral. `expect` não verifica texto nem conclusão de requisições: selecione um indicador real de sucesso. Seletores ambíguos, elementos ausentes e expectativas não satisfeitas interrompem a gravação. O manifesto registra o erro e a exportação recusa sessões incompletas.
+Every step accepts `pause` (seconds after the action) and `expect` (a selector that must become visible). Without `pause`, the capture picks the rhythm: after clicks and keys it waits for animations and DOM changes to finish (up to 0.6 s) and records the area of the page that changed; then comes a short, varying breath like a person's, not a fixed beat. An `expect` result stays on screen for 0.6 s + 0.15 s per word of its headline (0.8–1.6 s), long enough to register the change without reading the whole panel; if the next step acts inside the result, the pause is short. The camera frames the result together with the clicked control when both fit, or moves to it; a large result (page, dialog) is shown in the overview. `expect` doesn't check text or request completion: select a real success indicator. Ambiguous selectors, missing elements and unmet expectations stop the recording. The manifest records the error and export refuses incomplete sessions.
 
-O viewport padrão é 1440×810 (16:9, como a exportação), para a janela ficar com margens uniformes. `file:./demo.html` é resolvido relativamente ao arquivo JSON. Para uma aplicação autenticada, `--storage-state /caminho/session.auth.json` carrega um estado Playwright existente. `--headed` abre o navegador com interface.
+The default viewport is 1440×810 (16:9, like the export), so the window gets even margins. `file:./demo.html` is resolved relative to the JSON file. For an authenticated app, `--storage-state /path/session.auth.json` loads an existing Playwright state. `--headed` opens the browser with its UI.
 
-## Acabamento e exportação
+## Finishing and export
 
 ```sh
-# Capturar sem compor
-node src/cli.mjs record roteiro.json --out recordings/entrega --capture-only
+# Capture without compositing
+node src/cli.mjs record script.json --out recordings/delivery --capture-only
 
-# Prévia leve
-node src/cli.mjs render recordings/entrega --width 1280 --height 720
+# Lightweight preview
+node src/cli.mjs render recordings/delivery --width 1280 --height 720
 
-# Reexportar a mesma captura, sem repetir as ações
-node src/cli.mjs render recordings/entrega --preset midnight --zoom 2 --window none
+# Re-export the same capture without repeating the actions
+node src/cli.mjs render recordings/delivery --preset midnight --zoom 2 --window none
 ```
 
-| Opção | Padrão | Faixa |
+| Option | Default | Range |
 | --- | --- | --- |
-| `--width`, `--height` | 1920 × 1080 | 320–3840, dimensões pares |
-| `--fps` | 60 | 24–60, inteiro |
-| `--zoom` | 1.5 | 1–3; nível dos close-ups; 1 desliga o zoom |
-| `--blur` | 0.75 | 0–1; 0 desliga motion blur |
+| `--width`, `--height` | 1920 × 1080 | 320–3840, even dimensions |
+| `--fps` | 60 | 24–60, integer |
+| `--zoom` | 1.5 | 1–3; close-up level; 1 turns zoom off |
+| `--blur` | 0.75 | 0–1; 0 turns motion blur off |
 | `--cursor-size` | 2 | 0.5–4 |
 | `--padding` | 0.09 | 0–0.25 |
-| `--preset` | sonoma-horizon (macos sem wallpapers importados) | macos, dusk, midnight, pearl e os wallpapers importados (`tahoe-day`, `sonoma-horizon`, `big-sur`…) |
-| `--window` | browser | browser (barra com semáforos e endereço), none |
-| `--keys` | combos | combos (atalhos e teclas nomeadas como Esc, Enter, Tab), all, none |
-| `--pacing` | balanced | balanced (acelera tempo morto), original |
+| `--preset` | sonoma-horizon (macos without imported wallpapers) | macos, dusk, midnight, pearl and the imported wallpapers (`tahoe-day`, `sonoma-horizon`, `big-sur`…) |
+| `--window` | browser | browser (bar with traffic lights and address), none |
+| `--keys` | combos | combos (shortcuts and named keys such as Esc, Enter, Tab), all, none |
+| `--pacing` | balanced | balanced (speeds up dead time), original |
 | `--quality` | high | high (CRF 16), standard (CRF 18) |
-| `--output` | `<gravação>/video.mp4` | Caminho alternativo de saída |
+| `--output` | `<recording>/video.mp4` | Alternative output path |
 
-O zoom serve para detalhe local. Um clique cujo efeito ocupa a tela (o gráfico redesenha, um painel abre, uma coluna some) acontece na visão geral, sem aproximar no controle só para afastar em seguida. Digitação, menus e efeitos pequenos ganham close-up. Ações locais próximas no tempo (até 3 s entre elas) formam uma única tomada com nível de zoom constante. A câmera se move junto com a mão: zoom e pans começam quando o cursor parte em direção ao alvo, e o cursor pode andar livremente pelos 60% centrais do quadro antes de a câmera acompanhá-lo. Assim o cursor nunca é arrastado pela tela depois de parar, e um zoom-out que terminaria logo antes de o cursor sair acontece junto com a saída dele. O zoom permanece por 1,8 s após o último clique ou 1,2 s após a digitação. Tomadas separadas por menos de 1,5 s se conectam com um pan, sem voltar à visão geral; entre close-ups até 2,5 s separados em assuntos próximos, a câmera recua só até a metade do zoom e volta, em vez de ir à visão geral; tomadas curtas demais são descartadas em vez de piscar. Scroll manual encerra a tomada; o auto-scroll até o próximo alvo não. Um `focus` grande demais para ampliar e um resultado grande (diálogo, página nova) seguram a visão geral entre as tomadas. O vídeo sempre abre na página inteira: um `focus` antes do primeiro gesto não dá zoom, e a primeira aproximação acontece junto com o primeiro movimento do mouse. Se a tomada seguinte enquadra o próprio resultado revelado (por exemplo, um `focus` nele até 3,5 s depois), a câmera vai direto do close-up para ela, sem passar pela visão geral. Quando a região inteira de uma tomada cabe no quadro, o enquadramento fica parado; caso contrário, a câmera acompanha cada alvo. Em campos largos, enquadra o início do texto e segue o caret. O nível padrão é 1.5×, reduzido apenas quando a região não cabe com margem; um contêiner próximo e compacto é incluído quando disponível.
+Zoom is for local detail. A click whose effect fills the screen (the chart redraws, a panel opens, a column disappears) happens in the overview, without pushing in on the control only to pull out right after. Typing, menus and small effects get a close-up. Local actions close in time (up to 3 s apart) form a single shot at a constant zoom level. The camera moves with the hand: zooms and pans start when the cursor sets off toward the target, and the cursor can roam the central 60% of the frame before the camera follows it. So the cursor is never dragged across the screen after it stops, and a zoom-out that would end just before the cursor leaves happens together with its departure. Zoom holds for 1.8 s after the last click or 1.2 s after typing. Shots less than 1.5 s apart connect with a pan instead of returning to the overview; between close-ups up to 2.5 s apart on nearby subjects, the camera pulls back only halfway and returns, instead of going to the overview; shots that would be too short are dropped instead of flashing. A manual scroll ends the shot; the auto-scroll to the next target doesn't. A `focus` too large to magnify and a large result (dialog, new page) hold the overview between shots. The video always opens on the whole page: a `focus` before the first gesture doesn't zoom, and the first push-in happens with the first mouse movement. If the next shot frames the revealed result itself (for example, a `focus` on it up to 3.5 s later), the camera goes straight from the close-up to it without passing through the overview. When a shot's whole region fits in the frame, the framing stays still; otherwise the camera follows each target. In wide fields it frames the start of the text and follows the caret. The default level is 1.5×, reduced only when the region doesn't fit with a margin; a nearby, compact container is included when available.
 
-A câmera usa duas molas criticamente amortecidas em cascata sobre zoom (em escala logarítmica) e pan: sai sem tranco, chega a 90% em ~0,6 s e assenta em ~1,2 s, como o zoom do Screen Studio. A velocidade da mola principal acompanha o tempo até a próxima mudança: até 1,5× mais rápida quando a próxima ação é iminente, 0,8× antes de uma pausa longa, para os movimentos não terem todos a mesma duração. Partindo da visão geral, o zoom cresce direto em direção ao alvo; ao sair, recua a partir do mesmo enquadramento. No fim, o vídeo espera o último zoom-out assentar (1,2 s) e fica mais 0,4 s parado. Perto das bordas, como no Screen Studio, a câmera pode mostrar o wallpaper, limitada à cena com margem e a cerca de 10% do quadro nos close-ups.
+The camera uses two cascaded critically damped springs over zoom (on a log scale) and pan: it starts without a jolt, reaches 90% in ~0.6 s and settles in ~1.2 s, like Screen Studio's zoom. The main spring's speed follows the time until the next change: up to 1.5× faster when the next action is imminent, 0.8× before a long pause, so moves don't all last the same. From the overview, the zoom grows straight toward the target; when leaving, it pulls back from the same framing. At the end, the video waits for the last zoom-out to settle (1.2 s) and holds still for another 0.4 s. Near the edges, as in Screen Studio, the camera may show the wallpaper, limited to the scene plus its margin and to about 10% of the frame in close-ups.
 
-O cursor é redesenhado a partir dos dados da captura:
+The cursor is redrawn from the capture data:
 
-- **Suavização:** como no Screen Studio, o cursor é desenhado através de uma mola (rigidez 470, amortecimento 70, massa 3, o padrão do Screen Studio) que persegue a mão um pouco à frente: começa suave, arredonda as curvas e assenta ao chegar, sem atraso perceptível. Perto de cada clique ele é preso ao ponto exato, como no Cap e no openscreen.
-- **Trajetória:** arco visível (4–7% da distância no ponto mais largo) sempre para o mesmo lado, com curvatura e forma variando a cada gesto, pico de velocidade antes da metade e desaceleração longa. Só alvos pequenos (< 24 px) recebem a correção final, de no máximo 120 ms; alvos maiores são atingidos num traço só.
-- **Duração:** segue a lei de Fitts para um apresentador ágil, com variação lognormal entre gestos e velocidade máxima legível. A trajetória é gravada com o tempo planejado: uma página ocupada não estica o traço na tela.
-- **Pausas:** o cursor fica parado enquanto o resultado aparece, como numa gravação real. Quando o próximo alvo já está na tela e há tempo, a mão vai até ele num único traço durante a pausa e espera em cima dele; a câmera sai junto com esse traço. Nada de deslizes lentos, avanço em duas etapas ou tremor aleatório.
-- **Clique:** a espera antes de clicar varia como a de uma pessoa (mais longa em alvos pequenos e antes de salvar, excluir ou confirmar). O ponteiro encolhe para 0,8× nos 130 ms antes do botão descer, fica pressionado no máximo 0,14 s e volta com um leve rebote (1,04×).
-- **Troca de forma:** entre seta, mão e I-beam, a nova forma surge com crossfade e escala de 0,2 s.
-- **Rotação:** o ponteiro inclina 1° a cada 480 px/s de velocidade horizontal, até 8°.
-- **Visibilidade:** some ao começar a digitação, como no macOS, e reaparece 250 ms antes de voltar a se mover. Também encolhe e some após 3,5 s parado (nunca durante um scroll), ou logo antes de a câmera se mover sozinha e arrastar o cursor parado por mais de 1/16 da largura do quadro, ou para fora dele (um `focus` longe do ponteiro, o zoom-out de um resultado). Os fades levam ~0,2 s com easing. Ocultações com menos de 0,5 s são puladas para o cursor não piscar, e um cursor que sumiria antes do primeiro movimento não aparece na abertura.
-- **Tamanho:** cresce levemente com o zoom.
+- **Smoothing:** as in Screen Studio, the cursor is drawn through a spring (stiffness 470, damping 70, mass 3, Screen Studio's default) that chases the hand slightly ahead: it starts gently, rounds corners and settles on arrival, with no noticeable lag. Near each click it is pinned to the exact point, as in Cap and openscreen.
+- **Path:** a visible arc (4–7% of the distance at its widest) always to the same side, with curvature and shape varying per gesture, peak speed before the midpoint and a long deceleration. Only small targets (< 24 px) get a final correction, of at most 120 ms; larger targets are hit in a single stroke.
+- **Duration:** follows Fitts' law for a nimble presenter, with lognormal variation between gestures and a readable top speed. The path is recorded with its planned timing: a busy page doesn't stretch the stroke on screen.
+- **Pauses:** the cursor stays still while the result appears, as in a real recording. When the next target is already on screen and there is time, the hand moves to it in a single stroke during the pause and waits on top of it; the camera leaves with that stroke. No slow drifts, two-step approaches or random jitter.
+- **Click:** the wait before clicking varies like a person's (longer on small targets and before saving, deleting or confirming). The pointer shrinks to 0.8× in the 130 ms before the button goes down, stays pressed for at most 0.14 s and springs back with a slight rebound (1.04×).
+- **Shape changes:** between arrow, hand and I-beam, the new shape appears with a 0.2 s crossfade and scale.
+- **Tilt:** the pointer tilts 1° per 480 px/s of horizontal speed, up to 8°.
+- **Visibility:** hides when typing starts, as on macOS, and reappears 250 ms before moving again. It also shrinks and hides after 3.5 s idle (never during a scroll), or just before the camera moves on its own and would drag the idle cursor more than 1/16 of the frame width, or out of the frame (a `focus` far from the pointer, a result's zoom-out). Fades take ~0.2 s with easing. Hides shorter than 0.5 s are skipped so the cursor doesn't blink, and a cursor that would hide before its first movement doesn't show at the opening.
+- **Size:** grows slightly with zoom.
 
-Antes de digitar, a mão leva 0,25–0,45 s para ir do mouse ao teclado; um campo já preenchido é selecionado (o destaque aparece por ~0,2 s) e sobrescrito. A digitação tem intervalos lognormais em torno de 100 palavras por minuto, primeira tecla de cada palavra mais lenta, pausas após vírgula e ponto e hesitações ocasionais no meio da palavra. Atalhos com modificador (por exemplo `ControlOrMeta+K`) e teclas nomeadas que mudam a página por si só (Esc, Enter, Tab) aparecem numa pílula escura na parte inferior do vídeo; um Esc ou Enter isolado não esconde o cursor. O auto-scroll desliza o alvo, e o próximo alvo quando cabe junto, até pouco acima do meio da tela, em vez de colá-lo na borda.
+Before typing, the hand takes 0.25–0.45 s to go from the mouse to the keyboard; a field that already has content is selected (the highlight shows for ~0.2 s) and overwritten. Typing has lognormal intervals around 100 words per minute, a slower first key in each word, pauses after commas and periods, and occasional hesitations mid-word. Modifier shortcuts (for example `ControlOrMeta+K`) and named keys that change the page on their own (Esc, Enter, Tab) appear in a dark pill at the bottom of the video; a lone Esc or Enter doesn't hide the cursor. Auto-scroll glides the target, and the next target when it fits too, to just above the middle of the screen instead of pinning it to the edge.
 
-O motion blur integra amostras temporais do movimento da câmera e do cursor, espaçadas em no máximo ~2 px (até 16 por frame em `high`). A página é rasterizada uma vez por frame, e as amostras de blur reutilizam essa imagem com um pequeno deslocamento; ele não aplica um desfoque uniforme à tela. Novas capturas usam PNG sem perdas e `captureScale: 2`: viewport de 1440×810 produz frames de 2880×1620, sem mudar o layout da página. O Chromium usa escala física e emulada compatíveis, verificadas em cada frame. O zoom amostra a imagem original diretamente; evita reduzir a página antes de ampliá-la. Use `captureScale: 3` no roteiro para exportações 4K com mais reserva de resolução, respeitando o limite de 8192 pixels por dimensão.
+Motion blur integrates temporal samples of camera and cursor motion, spaced at most ~2 px apart (up to 16 per frame in `high`). The page is rasterized once per frame, and the blur samples reuse that image with a small offset; it doesn't apply a uniform blur to the screen. New captures use lossless PNG and `captureScale: 2`: a 1440×810 viewport produces 2880×1620 frames without changing the page layout. Chromium uses matching physical and emulated scale, verified on every frame. Zoom samples the original image directly; it avoids downscaling the page before magnifying it. Use `captureScale: 3` in the script for 4K exports with more resolution headroom, within the 8192-pixel-per-dimension limit.
 
-O fundo padrão é o Sonoma Horizon (colinas de Sonoma ao entardecer), disponível depois de `npm run wallpapers`; sem wallpapers importados, usa o wallpaper do macOS fornecido pelo usuário, salvo em `assets/macos-wallpaper.png` (preset `macos`). A imagem preenche a saída sem distorção, com recorte central quando necessário. Os presets de gradiente continuam disponíveis. A janela tem uma barra de navegador vetorial (semáforos e endereço, sem query string), com tom claro ou escuro conforme o topo da página, e se destaca do fundo só pela sombra em três camadas, sem contorno, como no Screen Studio: nenhum fundo escuro fica sob a janela, então a borda suavizada da página se mistura direto com o wallpaper. Wallpaper, margem, janela, página e cursor formam uma única cena: na visão geral a margem aparece ao redor da tela e, durante o zoom, a cena inteira aumenta e se move continuamente com a câmera. O wallpaper pode continuar visível nas bordas quando o enquadramento pedir isso, evitando mudanças bruscas de posição durante a animação. No ritmo `balanced`, trechos em que nada muda na tela (sem gesto, clique, tecla ou scroll, e sem repaint visível; um cursor de texto piscando ou um spinner pequeno não contam) e que passam de 1,1 s mantêm 0,35 s de quietude em cada ponta e passam o meio 3,5× mais rápido; um `focus` explícito mantém 1,8 s de leitura. A gravação começa depois que a página para de animar, com o cursor num ponto que não abre tooltip nem hover. A saída é H.264/MP4, com fast-start para reprodução na web. O arquivo é marcado como 1-13-1 (primárias e matriz BT.709, transferência sRGB), no bitstream e no átomo `colr`, para o QuickTime e o Safari não clarearem as cores.
+The default background is Sonoma Horizon (Sonoma hills at dusk), available after `npm run wallpapers`; without imported wallpapers it uses the user-supplied macOS wallpaper saved at `assets/macos-wallpaper.png` (preset `macos`). The image fills the output without distortion, center-cropped when needed. The gradient presets remain available. The window has a vector browser bar (traffic lights and address, without the query string), light or dark to match the top of the page, and stands out from the background only through a three-layer shadow, with no outline, as in Screen Studio: no dark fill sits under the window, so the page's anti-aliased edge blends straight into the wallpaper. Wallpaper, margin, window, page and cursor form a single scene: in the overview the margin shows around the screen and, during zoom, the whole scene scales and moves continuously with the camera. The wallpaper may remain visible at the edges when the framing calls for it, avoiding abrupt position changes during the animation. With `balanced` pacing, stretches where nothing changes on screen (no gesture, click, key or scroll, and no visible repaint; a blinking text caret or a small spinner doesn't count) that last longer than 1.1 s keep 0.35 s of stillness at each end and play the middle 3.5× faster; an explicit `focus` keeps 1.8 s of reading time. Recording starts once the page stops animating, with the cursor on a spot that opens no tooltip or hover. Output is H.264/MP4 with fast-start for web playback. The file is tagged 1-13-1 (BT.709 primaries and matrix, sRGB transfer), in the bitstream and the `colr` atom, so QuickTime and Safari don't wash out the colors.
 
-Mais fundos: `npm run wallpapers` converte os wallpapers do macOS instalados neste Mac (e um quadro dos wallpapers em vídeo, como o Tahoe) para JPEG 4K em `assets/wallpapers/`; `node scripts/import-wallpapers.mjs --download` também baixa os que o macOS só baixa sob demanda (Big Sur, Catalina, Chroma, Dome, Peak, Hello…), do mesmo catálogo oficial que os Ajustes do Sistema usam (~1,5 GB, com cache em `~/Library/Caches/agent-screen`). Cada arquivo vira um preset pelo nome (`--preset tahoe-day`). A pasta fica fora do git: os wallpapers são da Apple, licenciados com o Mac, e não devem ser redistribuídos.
+More backgrounds: `npm run wallpapers` converts the macOS wallpapers installed on this Mac (plus a still from video wallpapers such as Tahoe) to 4K JPEG in `assets/wallpapers/`; `node scripts/import-wallpapers.mjs --download` also downloads the ones macOS only fetches on demand (Big Sur, Catalina, Chroma, Dome, Peak, Hello…), from the same official catalog System Settings uses (~1.5 GB, cached in `~/Library/Caches/agent-screen`). Each file becomes a preset by name (`--preset tahoe-day`). The folder is kept out of git: the wallpapers belong to Apple, are licensed with the Mac and must not be redistributed.
 
-## Arquivos de uma sessão
+## Session files
 
-- `frames/*.png`: frames originais sem perdas em alta densidade; sessões antigas com JPEG continuam renderizáveis.
-- `timeline.json`: timestamps, posições do cursor, cliques, regiões de foco e status.
-- `video.mp4`: vídeo composto.
-- `poster.png`: frame do meio da exportação para inspeção rápida.
-- `camera.json`: trajetória da câmera para diagnóstico.
-- `render.json`: parâmetros e medições reais de tempo de exportação e memória amostrada do processo Node. `motion` resume o movimento para ajuste objetivo: tomadas, fração do vídeo com zoom, menor close-up, menor retorno à visão geral (valores baixos indicam "pumping"), focos ignorados e fps da captura durante scroll.
+- `frames/*.png`: lossless high-density source frames; older sessions with JPEG remain renderable.
+- `timeline.json`: timestamps, cursor positions, clicks, focus regions and status.
+- `video.mp4`: the composited video.
+- `poster.png`: a frame from the middle of the export for quick inspection.
+- `camera.json`: the camera path, for diagnostics.
+- `render.json`: parameters and real measurements of export time and sampled Node process memory. `motion` summarizes movement for objective tuning: shots, share of the video spent zoomed, shortest close-up, shortest return to the overview (low values signal "pumping"), skipped focuses and capture fps during scroll.
 
-O arquivo do vídeo só é substituído após uma exportação bem-sucedida. Re-renderizar pode alterar o vídeo e os arquivos de diagnóstico da sessão. O roteiro contém os textos digitados; o manifesto não os duplica, mas os frames naturalmente mostram o conteúdo visível da página.
+The video file is replaced only after a successful export. Re-rendering may change the session's video and diagnostic files. The script contains the typed text; the manifest doesn't duplicate it, but the frames naturally show the page's visible content.
 
-## Arquitetura e dependências
+## Architecture and dependencies
 
 ```text
-Roteiro do agente → Playwright / Chromium → PNGs + eventos com timestamps
+Agent script → Playwright / Chromium → PNGs + timestamped events
                                               ↓
-                              Câmera + composição Skia → FFmpeg → MP4
+                              Camera + Skia composition → FFmpeg → MP4
 ```
 
-O código é separado pela responsabilidade de cada etapa:
+The code is split by the responsibility of each stage:
 
 ```text
 src/
-├── cli.mjs                 entrada da CLI
-├── cli/options.mjs         parsing e normalização de flags
+├── cli.mjs                 CLI entry point
+├── cli/options.mjs         flag parsing and normalization
 ├── capture/
-│   ├── record.mjs          orquestra a sessão de gravação
-│   ├── actions.mjs         executa passos e movimento do cursor
-│   ├── pacing.mjs          tempos de pausas, deslocamento e digitação
-│   ├── page-state.mjs      inspeção do DOM, auto-scroll e posição do caret
-│   └── screencast.mjs      captura, verifica resolução e persiste frames do CDP
+│   ├── record.mjs          orchestrates the recording session
+│   ├── actions.mjs         runs steps and cursor movement
+│   ├── pacing.mjs          pause, movement and typing timing
+│   ├── page-state.mjs      DOM inspection, auto-scroll and caret position
+│   └── screencast.mjs      captures, checks resolution and persists CDP frames
 ├── render/
-│   ├── index.mjs           orquestra a exportação frame a frame
-│   ├── background.mjs      wallpaper, gradientes e sombra da janela
-│   ├── toolbar.mjs         barra do navegador: tom e desenho
-│   ├── scene.mjs           composição direta da fonte e transformação da cena
-│   ├── cursor-art.mjs      vetores do cursor
-│   ├── cursor.mjs          forma, visibilidade, inclinação e clique por frame
-│   ├── keys.mjs            pílula de atalhos
-│   ├── focus.mjs           planejamento das tomadas de zoom
-│   ├── tracks.mjs          câmera e cursor de cada frame, simulados antes da composição
-│   ├── metrics.mjs         métricas de movimento do `render.json`
-│   ├── pacing.mjs          compressão temporal de esperas com rampas suaves
-│   ├── encoder.mjs         processo e lifecycle do FFmpeg
-│   └── settings.mjs        defaults e validação de render
-├── motion.mjs              câmera, easing e trajetória do cursor
-└── plan.mjs                validação do roteiro
+│   ├── index.mjs           orchestrates the frame-by-frame export
+│   ├── background.mjs      wallpaper, gradients and window shadow
+│   ├── wallpapers.mjs      background presets and the default
+│   ├── toolbar.mjs         browser bar: tone and drawing
+│   ├── scene.mjs           direct source composition and scene transform
+│   ├── cursor-art.mjs      cursor vectors
+│   ├── cursor.mjs          per-frame shape, visibility, tilt and click
+│   ├── keys.mjs            shortcut pill
+│   ├── focus.mjs           zoom shot planning
+│   ├── tracks.mjs          per-frame camera and cursor, simulated before compositing
+│   ├── metrics.mjs         motion metrics for `render.json`
+│   ├── pacing.mjs          time compression of waits with smooth ramps
+│   ├── stillness.mjs       detects frames with no visible change
+│   ├── encoder.mjs         FFmpeg process and lifecycle
+│   └── settings.mjs        render defaults and validation
+├── motion.mjs              camera, easing and cursor path
+└── plan.mjs                script validation
 ```
 
-`src/record.mjs` e `src/render.mjs` continuam como fachadas públicas para manter imports existentes estáveis.
+`src/record.mjs` and `src/render.mjs` remain as public facades to keep existing imports stable.
 
-- [Playwright](https://playwright.dev/): ações, seletores e controle do Chromium.
-- [Chrome DevTools Protocol](https://chromedevtools.github.io/devtools-protocol/tot/Page/#method-startScreencast): frames com timestamp do compositor, sem polling de screenshots para o vídeo.
-- [@napi-rs/canvas](https://github.com/Brooooooklyn/canvas): composição nativa com Skia.
-- [FFmpeg](https://ffmpeg.org/): codificação H.264 e mux do MP4.
+- [Playwright](https://playwright.dev/): actions, selectors and Chromium control.
+- [Chrome DevTools Protocol](https://chromedevtools.github.io/devtools-protocol/tot/Page/#method-startScreencast): frames timestamped by the compositor, with no screenshot polling for the video.
+- [@napi-rs/canvas](https://github.com/Brooooooklyn/canvas): native composition with Skia.
+- [FFmpeg](https://ffmpeg.org/): H.264 encoding and MP4 muxing.
 
-A captura e a renderização são sequenciais e independentes. O renderizador mantém somente o frame fonte atual e buffers de composição, aplica amostragem adaptativa e respeita a vazão do encoder. Os metadados de câmera são proporcionais à duração; os frames originais ficam em disco. A memória reportada não inclui processos Chromium nem FFmpeg.
+Capture and rendering are sequential and independent. The renderer keeps only the current source frame and composition buffers, applies adaptive sampling and respects the encoder's throughput. Camera metadata is proportional to duration; the source frames stay on disk. The reported memory doesn't include the Chromium or FFmpeg processes.
 
-Referências analisadas: [Screen Studio — animações](https://screen.studio/guide/animations), [cursor](https://screen.studio/guide/cursor), [auto zoom](https://screen.studio/guide/auto-zoom), [Recordly](https://github.com/webadderallorg/Recordly) e [OpenScreen](https://github.com/siddharthvaddem/openscreen). Os dois últimos são aplicações de edição completas; nenhum código ou asset deles foi incorporado. A implementação utiliza as bibliotecas listadas acima e mantém a lógica específica de roteiro e enquadramento neste projeto.
+References studied: [Screen Studio — animations](https://screen.studio/guide/animations), [cursor](https://screen.studio/guide/cursor), [auto zoom](https://screen.studio/guide/auto-zoom), [Recordly](https://github.com/webadderallorg/Recordly) and [OpenScreen](https://github.com/siddharthvaddem/openscreen). The last two are full editing applications; none of their code or assets was incorporated. The implementation uses the libraries listed above and keeps the script and framing logic in this project.
 
-## Limites desta versão
+## Limits of this version
 
-- Grava roteiros executados pela própria CLI em uma única aba Chromium; não grava o histórico do trabalho nem se conecta à aba que outro agente já está usando.
-- A câmera e o cursor são renderizados a 60 fps por padrão. A captura da interface segue o ritmo do compositor do navegador; 60 fps na saída não garante 60 frames distintos da aplicação por segundo.
-- Sem captura de áudio, webcam, janelas nativas, popups, drag-and-drop ou edição visual de timeline.
-- A rolagem da página é capturada como ocorre; o blur temporal implementado trata câmera e cursor, sem sintetizar frames intermediários da interface.
-- Alterar a proporção da saída mantém a proporção da captura e adiciona margem; ainda não há recomposição automática para redes sociais verticais.
-- Usa Skia e libx264 em CPU. Aceleração GPU e encoder de hardware ainda precisam de implementação e benchmark.
-- Novas capturas registram seta, mão e I-beam conforme o DOM. Não há captura de cursores personalizados de canvas/iframes; sessões antigas usam seta.
+- Records scripts run by the CLI itself in a single Chromium tab; it doesn't record the history of the work or attach to a tab another agent is already using.
+- Camera and cursor render at 60 fps by default. Interface capture follows the browser compositor's pace; 60 fps output doesn't guarantee 60 distinct app frames per second.
+- No audio, webcam, native windows, popups, drag-and-drop or visual timeline editing.
+- Page scrolling is captured as it happens; the temporal blur covers camera and cursor and doesn't synthesize in-between interface frames.
+- Changing the output aspect ratio keeps the capture's aspect ratio and adds margin; there is no automatic reframing for vertical social formats yet.
+- Uses Skia and libx264 on the CPU. GPU acceleration and a hardware encoder still need implementation and benchmarking.
+- New captures record arrow, hand and I-beam from the DOM. Custom canvas/iframe cursors aren't captured; older sessions use the arrow.
 
-## Verificação
+## Verification
 
 ```sh
 npm test
 npm run check
 ```
 
-Os testes cobrem geometria e estabilidade da câmera, trajetória e interpolação do cursor e validação do roteiro. O exemplo local exercita captura, digitação, cliques, resultado final, composição e codificação. A revisão visual do MP4 continua necessária: esses testes não medem beleza nem demonstram equivalência ao Screen Studio.
+The tests cover camera geometry and stability, cursor path and interpolation, and script validation. The local example exercises capture, typing, clicks, the final result, composition and encoding. Watching the MP4 is still necessary: these tests don't measure beauty or show equivalence to Screen Studio.
 
-## Caminho rápido para agentes
+## Fast path for agents
 
-A skill reaproveita URL, seletores e estado conhecidos da tarefa. A preparação deve investigar apenas o que falta para o roteiro; não exige auditoria do projeto, reinstalação, ensaio completo ou exportação de prévia. O comando `record` já verifica as dependências antes das ações e entrega o MP4 numa única execução. O padrão continua 1080p/60 fps.
+The skill reuses the URL, selectors and state already known from the task. Preparation should investigate only what the script is missing; it doesn't require auditing the project, reinstalling, a full rehearsal or a preview export. The `record` command already checks dependencies before the actions and delivers the MP4 in a single run. The default remains 1080p/60 fps.
 
 ```sh
-# Diagnóstico opcional: informa o repositório da ferramenta e correções necessárias
+# Optional diagnosis: reports the tool's repository and needed fixes
 node src/cli.mjs doctor
-# Validação opcional, sem navegador; não verifica seletores na aplicação
+# Optional validation, no browser; doesn't check selectors against the app
 node src/cli.mjs validate examples/demo.json
 ```
 
-Help e validação carregam apenas módulos necessários e funcionam sem Canvas, Chromium ou FFmpeg instalados. Instale dependências no repositório da ferramenta, nunca no projeto filmado por engano. O runner da skill funciona a partir de outro diretório usando caminhos absolutos.
+Help and validation load only the modules they need and work without Canvas, Chromium or FFmpeg installed. Install dependencies in the tool's repository, never in the filmed project by mistake. The skill's runner works from another directory using absolute paths.
 
-`workflow.json` registra preflight, setup do navegador, gravação, exportação e total da CLI. Setup é parte do tempo de gravação, não deve ser somado novamente. A preparação do agente antes da chamada não é medida. Os tempos da CLI aparecem também no JSON final. Falhas de exportação indicam como reaproveitar a captura com `render`.
+`workflow.json` records preflight, browser setup, recording, export and the CLI total. Setup is part of the recording time and shouldn't be added again. The agent's preparation before the call isn't measured. The CLI timings also appear in the final JSON. Export failures explain how to reuse the capture with `render`.
 
-A câmera intersecta regiões de foco com o viewport antes de enquadrá-las. Contêineres maiores que a área visível são centralizados quando não cabem na região de conforto. A posição animada usa o espaço disponível no zoom atual, sem cortar a posição depois da mola; isso evita saltos ao sair de um close-up nas bordas. Essa correção também se aplica a capturas existentes via `render`.
+The camera intersects focus regions with the viewport before framing them. Containers larger than the visible area are centered when they don't fit in the comfort region. The animated position uses the space available at the current zoom, without clamping the position after the spring; this avoids jumps when leaving a close-up near the edges. The fix also applies to existing captures via `render`.
 
-Após um clique, o zoom volta à visão geral no tempo normal mesmo se a aplicação ainda estiver carregando. `focus` manual respeita sua duração. Em capturas antigas, o fim real da digitação pode não estar separado da espera por resultado.
+After a click, the zoom returns to the overview on its normal schedule even if the app is still loading. A manual `focus` respects its duration. In older captures, the real end of typing may not be separated from the wait for a result.
 
-O cursor usa interpolação cúbica monotônica entre amostras: preserva posições e horários de clique sem overshoot nem atraso de um filtro.
+Between capture samples, the hand's path uses monotonic cubic interpolation, which preserves positions and click times without overshoot; the spring described above smooths the drawn cursor on top of it.
 
-## Demonstração longa
+## Long demo
 
-`examples/extended-demo.html` é um workspace fictício local com formulário, menus, checklist, notas, gráfico e relatório. `examples/extended-demo.json` executa 38 ações, incluindo rolagem, foco em regiões amplas, teclas, digitação longa e carregamentos simulados. Não acessa serviços externos.
+`examples/extended-demo.html` is a local mock workspace with a form, menus, checklist, notes, chart and report. `examples/extended-demo.json` runs 38 actions, including scrolling, focus on wide regions, keys, long typing and simulated loads. It doesn't reach external services.
 
 ```sh
 node src/cli.mjs record examples/extended-demo.json --out recordings/extended-demo
 ```
 
-Use uma pasta nova ao repetir. Os carregamentos deliberados permitem avaliar o recuo do zoom após inatividade; as regiões amplas exercitam legibilidade e redução automática de ampliação.
+Use a new folder when repeating. The deliberate loads let you evaluate the zoom pulling back after inactivity; the wide regions exercise legibility and automatic zoom reduction.
 
-## Qualidade atual (2026-09-15)
+## Current quality (2026-09-15)
 
-O padrão `high` usa fonte PNG em 2×, composição direta, até 16 amostras temporais e H.264 CRF 16. A conversão usa matriz BT.709 com transferência sRGB identificada no arquivo. As alternativas de encoder medidas estão em [docs/motion-review.md](docs/motion-review.md). `standard` usa CRF 18 e até cinco amostras, preservando a fonte capturada. O render informa a resolução fonte e a reserva de pixels no maior zoom; valores abaixo de 1 significam ampliação de pixels existentes.
+The `high` default uses a 2× PNG source, direct composition, up to 16 temporal samples and H.264 CRF 16. Conversion uses the BT.709 matrix with sRGB transfer tagged in the file. The encoder alternatives measured are in [docs/motion-review.md](docs/motion-review.md). `standard` uses CRF 18 and up to five samples, preserving the captured source. The render reports the source resolution and pixel headroom at the highest zoom; values below 1 mean existing pixels are being magnified.
 
-Grupos compactos compartilham escala e região de enquadramento. Scrolls encerram focos antigos e a câmera abre antes da rolagem; a próxima aproximação aguarda o alvo estar disponível. A rolagem agenda eventos conforme o tempo real e descarta atrasos, mantendo a duração solicitada. A digitação varia nos limites de palavras e pontuação.
+Compact groups share scale and framing region. Scrolls end old focuses and the camera opens before scrolling; the next push-in waits for the target to be available. Scrolling schedules events in real time and drops delays, keeping the requested duration. Typing varies at word and punctuation boundaries.
 
-Esperas longas usam rampas contínuas de velocidade, limitadas a 4×, mantendo 550 ms em velocidade real nas bordas. Movimentos, cliques e scrolls protegidos não são comprimidos. `pause` e `focus` explícitos continuam disponíveis para leitura. [Mapa das melhorias, referências e limites](docs/quality-review.md).
+Long waits use continuous speed ramps, capped at 4×, keeping 550 ms at real speed at the edges. Movements, clicks and protected scrolls aren't compressed. Explicit `pause` and `focus` remain available for reading. [Map of improvements, references and limits](docs/quality-review.md).
 
-As revisões anteriores estão no [histórico técnico](docs/history.md).
+Earlier reviews are in the [technical history](docs/history.md).
