@@ -27,14 +27,16 @@ test('mouse buttons are held like a person holds them', () => {
 });
 
 test('typing reads as a skilled person: ~100 WPM, slower word starts, pauses after punctuation', () => {
-  const text = 'Simplificar a navegação e preparar uma experiência clara para novos clientes. Revisar amanhã, com calma.';
+  const text = 'Simplify navigation and prepare a clear experience for new customers. Review it tomorrow, calmly.';
   const delays = typingDelays(text, 3);
   assert.deepEqual(delays, typingDelays(text, 3));
   const mean = delays.reduce((sum, delay) => sum + delay, 0) / delays.length;
   assert.ok(mean > 100 && mean < 160, `mean ${mean} ms`);
   const characters = [...text];
+  // Averaged over several typing seeds: one sentence is too small a sample for lognormal intervals.
+  const samples = Array.from({ length: 8 }, (_, seed) => typingDelays(text, seed));
   const average = select => {
-    const chosen = delays.filter((_, index) => select(characters[index - 1], characters[index]));
+    const chosen = samples.flatMap(sample => sample.filter((_, index) => select(characters[index - 1], characters[index])));
     return chosen.reduce((sum, delay) => sum + delay, 0) / chosen.length;
   };
   assert.ok(average(previous => previous === ' ') > average(previous => /[a-z]/.test(previous ?? '')) * 1.15);

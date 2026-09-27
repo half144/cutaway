@@ -3,7 +3,7 @@
   "device": "iPhone 15 Pro",
   "steps": [
     { "action": "tap", "selector": "#add", "expect": "#composer.open #new-task" },
-    { "action": "type", "selector": "#task-title", "text": "Revisar protótipo mobile" },
+    { "action": "type", "selector": "#task-title", "text": "Review the mobile prototype" },
     { "action": "tap", "selector": "#priority" },
     { "action": "tap", "selector": "#save", "expect": "#toast.show" },
     { "action": "swipe", "y": 420 },

@@ -1,8 +1,8 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="en">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Forma — Tarefas</title>
+<title>Forma — Tasks</title>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;background:#faf9f6;color:#25272a;font:16px -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif}
@@ -60,40 +60,40 @@ body[data-tab=done] .task:not(.done),body[data-tab=done] h2,body[data-tab=done] 
 <body data-tab="today">
 <header><div class="brand"><div class="mark"></div>Forma</div><div class="avatar">RS</div></header>
 <main>
-  <h1 id="heading">Hoje</h1>
-  <div class="date">Sábado, 27 de setembro</div>
-  <section class="summary" id="summary"><div><b id="count">2 de 9</b><span>tarefas concluídas</span></div><div class="ring" id="ring" style="--done:22%"></div></section>
-  <h2>Manhã</h2>
+  <h1 id="heading">Today</h1>
+  <div class="date">Saturday, September 27</div>
+  <section class="summary" id="summary"><div><b id="count">2 of 9</b><span>tasks done</span></div><div class="ring" id="ring" style="--done:22%"></div></section>
+  <h2>Morning</h2>
   <div id="list">
-    <div class="task done"><button class="check" aria-label="Concluir"></button><div class="body"><div class="title">Enviar pauta da reunião</div><div class="meta">08:30 <span class="tag">Operações</span></div></div></div>
-    <div class="task"><button class="check" aria-label="Concluir"></button><div class="body"><div class="title">Revisar métricas da semana</div><div class="meta">09:00 <span class="tag">Produto</span></div></div></div>
-    <div class="task done"><button class="check" aria-label="Concluir"></button><div class="body"><div class="title">Responder o time de vendas</div><div class="meta">10:15 <span class="tag">Comercial</span></div></div></div>
-    <div class="task"><button class="check" aria-label="Concluir"></button><div class="body"><div class="title">Aprovar orçamento do trimestre</div><div class="meta">11:00 <span class="tag high">Alta</span></div></div></div>
+    <div class="task done"><button class="check" aria-label="Complete"></button><div class="body"><div class="title">Send the meeting agenda</div><div class="meta">08:30 <span class="tag">Operations</span></div></div></div>
+    <div class="task"><button class="check" aria-label="Complete"></button><div class="body"><div class="title">Review weekly metrics</div><div class="meta">09:00 <span class="tag">Product</span></div></div></div>
+    <div class="task done"><button class="check" aria-label="Complete"></button><div class="body"><div class="title">Reply to the sales team</div><div class="meta">10:15 <span class="tag">Sales</span></div></div></div>
+    <div class="task"><button class="check" aria-label="Complete"></button><div class="body"><div class="title">Approve the quarterly budget</div><div class="meta">11:00 <span class="tag high">High</span></div></div></div>
   </div>
-  <h2>Tarde</h2>
-  <div class="task"><button class="check" aria-label="Concluir"></button><div class="body"><div class="title">Entrevista com cliente piloto</div><div class="meta">14:00 <span class="tag">Pesquisa</span></div></div></div>
-  <div class="task"><button class="check" aria-label="Concluir"></button><div class="body"><div class="title">Atualizar roadmap</div><div class="meta">15:30 <span class="tag">Produto</span></div></div></div>
-  <div class="task"><button class="check" aria-label="Concluir"></button><div class="body"><div class="title">Preparar demo para o conselho</div><div class="meta">16:00 <span class="tag high">Alta</span></div></div></div>
-  <div class="task" id="deploy"><button class="check" id="deploy-check" aria-label="Concluir"></button><div class="body"><div class="title">Publicar versão 2.4</div><div class="meta">17:30 <span class="tag">Engenharia</span></div></div></div>
-  <h2>Noite</h2>
-  <div class="task" id="read"><button class="check" aria-label="Concluir"></button><div class="body"><div class="title">Ler proposta de parceria</div><div class="meta">20:00 <span class="tag">Parcerias</span></div></div></div>
-  <div class="empty" id="empty">Nada concluído ainda</div>
+  <h2>Afternoon</h2>
+  <div class="task"><button class="check" aria-label="Complete"></button><div class="body"><div class="title">Pilot customer interview</div><div class="meta">14:00 <span class="tag">Research</span></div></div></div>
+  <div class="task"><button class="check" aria-label="Complete"></button><div class="body"><div class="title">Update the roadmap</div><div class="meta">15:30 <span class="tag">Product</span></div></div></div>
+  <div class="task"><button class="check" aria-label="Complete"></button><div class="body"><div class="title">Prepare the board demo</div><div class="meta">16:00 <span class="tag high">High</span></div></div></div>
+  <div class="task" id="deploy"><button class="check" id="deploy-check" aria-label="Complete"></button><div class="body"><div class="title">Ship version 2.4</div><div class="meta">17:30 <span class="tag">Engineering</span></div></div></div>
+  <h2>Evening</h2>
+  <div class="task" id="read"><button class="check" aria-label="Complete"></button><div class="body"><div class="title">Read the partnership proposal</div><div class="meta">20:00 <span class="tag">Partnerships</span></div></div></div>
+  <div class="empty" id="empty">Nothing done yet</div>
 </main>
-<button class="fab" id="add" aria-label="Nova tarefa">+</button>
-<nav><button class="on" id="tab-today"><i></i>Hoje</button><button id="tab-next"><i></i>Próximas</button><button id="tab-done"><i></i>Concluídas</button></nav>
-<div id="composer"><div class="scrim" data-close></div><form class="sheet" id="new-task"><div class="grab"></div><h3>Nova tarefa</h3>
-  <input id="task-title" placeholder="O que precisa ser feito?" autocomplete="off">
-  <div class="chips"><button type="button" class="chip" id="priority">Alta prioridade</button><button type="button" class="chip">Hoje</button><button type="button" class="chip">Produto</button></div>
-  <button class="primary" id="save">Adicionar</button></form></div>
-<div id="actions" class="menu"><div class="scrim" data-close></div><div class="sheet" id="task-menu"><div class="grab"></div><h3 id="menu-title">Tarefa</h3>
-  <div class="row">Adiar para amanhã</div><div class="row">Mover para Produto</div><div class="row" id="delete">Excluir</div></div></div>
-<div class="toast" id="toast">Tarefa adicionada</div>
+<button class="fab" id="add" aria-label="New task">+</button>
+<nav><button class="on" id="tab-today"><i></i>Today</button><button id="tab-next"><i></i>Upcoming</button><button id="tab-done"><i></i>Done</button></nav>
+<div id="composer"><div class="scrim" data-close></div><form class="sheet" id="new-task"><div class="grab"></div><h3>New task</h3>
+  <input id="task-title" placeholder="What needs to be done?" autocomplete="off">
+  <div class="chips"><button type="button" class="chip" id="priority">High priority</button><button type="button" class="chip">Today</button><button type="button" class="chip">Product</button></div>
+  <button class="primary" id="save">Add</button></form></div>
+<div id="actions" class="menu"><div class="scrim" data-close></div><div class="sheet" id="task-menu"><div class="grab"></div><h3 id="menu-title">Task</h3>
+  <div class="row">Snooze until tomorrow</div><div class="row">Move to Product</div><div class="row" id="delete">Delete</div></div></div>
+<div class="toast" id="toast">Task added</div>
 <script>
 const $ = selector => document.querySelector(selector);
 function refresh() {
   const tasks = [...document.querySelectorAll('.task')];
   const done = tasks.filter(task => task.classList.contains('done')).length;
-  $('#count').textContent = `${done} de ${tasks.length}`;
+  $('#count').textContent = `${done} of ${tasks.length}`;
   $('#ring').style.setProperty('--done', `${Math.round(done / tasks.length * 100)}%`);
 }
 function bind(task) {
@@ -114,11 +114,11 @@ $('#add').addEventListener('click', () => { $('#composer').classList.add('open')
 $('#priority').addEventListener('click', event => event.currentTarget.classList.toggle('on'));
 $('#new-task').addEventListener('submit', event => {
   event.preventDefault();
-  const title = $('#task-title').value.trim() || 'Nova tarefa';
+  const title = $('#task-title').value.trim() || 'New task';
   const high = $('#priority').classList.contains('on');
   const task = document.createElement('div');
   task.className = 'task new';
-  task.innerHTML = `<button class="check" aria-label="Concluir"></button><div class="body"><div class="title"></div><div class="meta">Agora <span class="tag${high ? ' high' : ''}">${high ? 'Alta' : 'Produto'}</span></div></div>`;
+  task.innerHTML = `<button class="check" aria-label="Complete"></button><div class="body"><div class="title"></div><div class="meta">Now <span class="tag${high ? ' high' : ''}">${high ? 'High' : 'Product'}</span></div></div>`;
   task.querySelector('.title').textContent = title;
   $('#list').prepend(task);
   bind(task);
@@ -134,8 +134,8 @@ function tab(name, heading) {
   document.querySelectorAll('nav button').forEach(button => button.classList.toggle('on', button.id === `tab-${name}`));
   scrollTo({ top: 0 });
 }
-$('#tab-done').addEventListener('click', () => tab('done', 'Concluídas'));
-$('#tab-today').addEventListener('click', () => tab('today', 'Hoje'));
+$('#tab-done').addEventListener('click', () => tab('done', 'Done'));
+$('#tab-today').addEventListener('click', () => tab('today', 'Today'));
 </script>
 </body>
 </html>

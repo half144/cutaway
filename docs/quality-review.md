@@ -1,54 +1,54 @@
-# Revisão de qualidade — 15/09/2026
+# Quality review — 2026-09-15
 
-Câmera, cursor, clique, digitação e composição foram revistos em 26/09; veja a [revisão de movimento e acabamento](motion-review.md). As decisões de captura e resolução abaixo continuam valendo.
+Camera, cursor, click, typing and composition were revised on 2026-09-26; see the [motion and finish review](motion-review.md). The capture and resolution decisions below still apply.
 
-O objetivo é melhorar legibilidade, continuidade e ritmo em demonstrações web. As mudanças abaixo estão implementadas. Não houve cópia de código ou assets das aplicações de referência; os cursores vetoriais desta versão são próprios.
+The goal is to improve legibility, continuity and pacing in web demos. The changes below are implemented. No code or assets were copied from the reference applications; the vector cursors in this version are our own.
 
-## Referências consultadas
+## References consulted
 
-- [Screen Studio: animações](https://screen.studio/guide/animations) separa ajustes de cursor, zoom e pan e oferece animação que se estabiliza para facilitar leitura.
-- [Screen Studio: cursor](https://screen.studio/guide/cursor) documenta formas, ocultação durante inatividade, rotação e redução de trocas rápidas de tipo.
-- [Recordly: constantes](https://github.com/WizardofTryout/recordly/blob/main/src/components/video-editor/videoPlayback/constants.ts) e [ligação de zooms](https://github.com/WizardofTryout/recordly/blob/main/src/components/video-editor/videoPlayback/zoomRegionUtils.ts) usam intervalos de transição e conexão de regiões. A leitura informa o projeto; os tempos não foram copiados como novo preset.
-- [Cap: planejamento da câmera](https://github.com/CapSoftware/Cap/blob/main/crates/rendering/src/zoom_spring.rs) considera coordenadas do conteúdo, zonas de conforto e testes para movimentos abruptos de automação.
-- [Chromium: PageHandler](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/content/browser/devtools/protocol/page_handler.cc) captura a superfície física do compositor. Alterar apenas o DPR emulado não garante screencast Retina. Isso foi reproduzido e verificado nesta máquina.
-- [FFmpeg: scale](https://ffmpeg.org/ffmpeg-filters.html#scale-1) permite controlar matriz e faixa na conversão RGB → YUV. O arquivo agora identifica também primárias e transferência.
+- [Screen Studio: animations](https://screen.studio/guide/animations) separates cursor, zoom and pan settings and offers animation that settles to make reading easier.
+- [Screen Studio: cursor](https://screen.studio/guide/cursor) documents shapes, hiding during inactivity, rotation and reducing rapid shape changes.
+- [Recordly: constants](https://github.com/WizardofTryout/recordly/blob/main/src/components/video-editor/videoPlayback/constants.ts) and [zoom linking](https://github.com/WizardofTryout/recordly/blob/main/src/components/video-editor/videoPlayback/zoomRegionUtils.ts) use transition intervals and region linking. Reading them informs the design; the timings were not copied as a new preset.
+- [Cap: camera planning](https://github.com/CapSoftware/Cap/blob/main/crates/rendering/src/zoom_spring.rs) considers content coordinates, comfort zones and tests for abrupt automation movements.
+- [Chromium: PageHandler](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/content/browser/devtools/protocol/page_handler.cc) captures the compositor's physical surface. Changing only the emulated DPR does not guarantee a Retina screencast. This was reproduced and verified on this machine.
+- [FFmpeg: scale](https://ffmpeg.org/ffmpeg-filters.html#scale-1) allows controlling matrix and range in the RGB → YUV conversion. The file now also declares primaries and transfer.
 
-## Gaps corrigidos
+## Gaps fixed
 
-| Gap identificado | Implementação | Efeito esperado / verificação |
+| Identified gap | Implementation | Expected effect / verification |
 | --- | --- | --- |
-| Captura 1× e JPEG antes de ampliar | PNG sem perdas, `captureScale: 2`, escala física do Chromium e emulação alinhadas | Frames reais de 2880×1800 mantendo layout de 1440×900; resolução conferida em cada frame |
-| Página reduzida para a moldura e ampliada novamente | Transformação final aplicada diretamente à imagem fonte | Teste com linhas de um pixel preserva contraste no mapeamento 1:1 |
-| Filtro cúbico suavizava mesmo sem ampliação | Filtragem escolhida pela relação de pixels fonte/saída | Cubic somente para ampliação; mantém detalhe quando a captura já tem resolução suficiente |
-| Renderização repetida de página estática durante movimento do cursor | Cache da página na resolução final, independente da sobreposição do cursor | Reutilização sem ampliar um bitmap intermediário; tolerância máxima de 0,01 pixel na cauda da mola |
-| Câmera apontava para coordenadas antigas durante scroll | Eventos de scroll interrompem foco e ligação entre grupos | Recuo antecipado, próximo foco somente após estabilização/visibilidade; fallback para sessões antigas |
-| Cliques próximos compartilhavam zoom mas mudavam centro | Região conjunta quando os controles cabem na zona de conforto | Enquadramento estável preservando contexto; teste cobre toda a região do grupo |
-| Círculo de clique acompanhava o mouse | Indicador ancorado na coordenada do clique | Local clicado continua identificável enquanto o mouse sai |
-| Seta única sobre campos e links | Metadados do DOM, seta/mão/I-beam vetoriais, transição de 80 ms e filtro de eventos breves | Cursor mais coerente; sessões antigas continuam usando seta |
-| Segunda animação de clique para digitar no campo já focado | `type` verifica o elemento ativo | Evita clique redundante e mantém digitação visível |
-| Trajetórias acumulavam etapas atrasadas | Agendamento pelo tempo real, descarte de amostras vencidas e duração conforme distância/tamanho do alvo | Evita rajadas para recuperar atraso do navegador |
-| Scroll sempre tinha 60 incrementos | Agendamento conforme duração e tempo real | Scroll longo deixa de ter sua cadência limitada a 60 incrementos totais; não garante 60 frames fonte |
-| Autoscroll esperava sempre 350 ms | Aguarda estabilidade do retângulo no navegador, com limite de tempo | Próximo movimento usa a posição estabilizada do alvo |
-| Digitação tinha ciclo mecânico de cinco teclas | Variação determinística por caractere, pequenas pausas entre palavras e pontuação | Ritmo reproduzível com menos repetição perceptível |
-| Esperas mudavam instantaneamente de velocidade | Rampas com velocidade/aceleração contínuas, bordas de 550 ms e máximo 4× | Testes numéricos verificam monotonicidade, limites e junções suaves |
-| Espera pelo próximo alvo não era considerada | Compressão de preparação longa quando há timestamps e nenhum movimento protegido | Reduz tempo ocioso sem comprimir cliques, mouse ou scroll |
-| Qualidade de entrega era fixa em CRF 18 | `--quality high` padrão: CRF 16, preset medium e até oito amostras (16 desde a [segunda passada](motion-review.md#segunda-passada-acabamento-do-vídeo-medido)); `standard`: CRF 18 e cinco | Mais reserva para texto/gradientes; custo maior de CPU e tamanho de arquivo |
-| Cores dependiam de conversão implícita | Matriz/primárias BT.709, faixa limitada e transferência sRGB identificadas | Conversão declarada para a fonte sRGB, verificável com ffprobe. No FFmpeg 7.1+ as primárias e a transferência eram descartadas até 26/09; agora o filtro `setparams` as grava ([segunda passada](motion-review.md#segunda-passada-acabamento-do-vídeo-medido)) |
+| 1× capture and JPEG before upscaling | Lossless PNG, `captureScale: 2`, Chromium physical scale and emulation aligned | Real 2880×1800 frames keeping a 1440×900 layout; resolution checked on every frame |
+| Page scaled down to the frame and scaled up again | Final transform applied directly to the source image | Test with one-pixel lines preserves contrast in 1:1 mapping |
+| Cubic filter smoothed even without upscaling | Filtering chosen by the source/output pixel ratio | Cubic only for upscaling; keeps detail when the capture already has enough resolution |
+| Repeated rendering of a static page during cursor movement | Page cache at the final resolution, independent of the cursor overlay | Reuse without upscaling an intermediate bitmap; maximum tolerance of 0.01 pixel in the spring tail |
+| Camera pointed at stale coordinates during scroll | Scroll events interrupt focus and linking between groups | Early pull-back, next focus only after settling/visibility; fallback for old sessions |
+| Nearby clicks shared zoom but changed center | Combined region when the controls fit in the comfort zone | Stable framing that preserves context; test covers the whole group region |
+| Click circle followed the mouse | Indicator anchored at the click coordinate | The clicked spot stays identifiable while the mouse moves away |
+| Single arrow over fields and links | DOM metadata, vector arrow/hand/I-beam, 80 ms transition and filter for brief events | More coherent cursor; old sessions keep using the arrow |
+| Second click animation to type in an already focused field | `type` checks the active element | Avoids a redundant click and keeps typing visible |
+| Trajectories accumulated late steps | Scheduling by real time, dropping stale samples, and duration based on distance/target size | Avoids bursts to catch up with browser lag |
+| Scroll always had 60 increments | Scheduling by duration and real time | Long scroll no longer has its cadence limited to 60 total increments; does not guarantee 60 source frames |
+| Autoscroll always waited 350 ms | Waits for the rectangle to settle in the browser, with a time limit | Next movement uses the target's settled position |
+| Typing had a mechanical five-key cycle | Deterministic per-character variation, small pauses between words and after punctuation | Reproducible rhythm with less noticeable repetition |
+| Waits changed speed instantly | Ramps with continuous speed/acceleration, 550 ms edges and 4× maximum | Numeric tests check monotonicity, limits and smooth joins |
+| Waiting for the next target was not considered | Compression of long preparation when there are timestamps and no protected movement | Reduces idle time without compressing clicks, mouse or scroll |
+| Delivery quality was fixed at CRF 18 | `--quality high` default: CRF 16, preset medium and up to eight samples (16 since the [second pass](motion-review.md#second-pass-video-finish-measured)); `standard`: CRF 18 and five | More headroom for text/gradients; higher CPU cost and file size |
+| Colors depended on implicit conversion | BT.709 matrix/primaries, limited range and sRGB transfer declared | Declared conversion for the sRGB source, verifiable with ffprobe. On FFmpeg 7.1+ the primaries and transfer were dropped until 2026-09-26; now the `setparams` filter writes them ([second pass](motion-review.md#second-pass-video-finish-measured)) |
 
-## Escolhas preservadas
+## Choices kept
 
-Mola criticamente amortecida de 5,8/s, zoom moderado e liberação após 2,4 s de inatividade continuam sendo a base. A revisão não aumenta globalmente a velocidade nem a intensidade dos efeitos. Wallpaper, padding e janela continuam como uma cena única, podendo aparecer naturalmente durante zoom. Pausas editoriais explícitas e focos manuais são respeitados. A fonte permanece reaproveitável; `--pacing original` preserva sua duração.
+A critically damped 5.8/s spring, moderate zoom and release after 2.4 s of inactivity remain the baseline. The review does not globally increase the speed or intensity of the effects. Wallpaper, padding and window remain a single scene and can show naturally during zoom. Explicit editorial pauses and manual focuses are respected. The source stays reusable; `--pacing original` keeps its duration.
 
-## Limites e próximos investimentos
+## Limits and next investments
 
-1. **Cadência real da página:** CDP entrega frames conforme compositor, carga e codificação. A exportação a 60 fps suaviza câmera/cursor, mas não cria frames novos para scroll e animações da aplicação. Uma captura dedicada por GPU/compositor com timestamps precisa de outro backend e benchmark; duplicar frames não resolve esse limite.
-2. **Contexto semântico:** o foco considera retângulos e contêineres compactos. Não interpreta o significado de gráficos, resultados ou mudanças de rota. O roteiro ainda precisa escolher seletores/resultados adequados e `focus` para leitura editorial.
-3. **Cursores especiais:** canvas, iframes e ponteiros customizados não têm detecção completa. Os vetores atuais representam três formas, não reproduções oficiais de todo o conjunto de cursores do macOS.
-4. **Legibilidade de capturas antigas:** reexportar melhora composição e câmera, mas não recupera resolução já perdida em JPEGs antigos. `sourcePixelsPerOutputPixelAtMaxZoom` abaixo de 1 indica ampliação de pixels.
-5. **Tempo de exportação:** PNG Retina e mais amostras custam CPU. Medir pelo `render.json` da sessão; números de versões antigas não garantem o desempenho atual. Aceleração de hardware deve ser avaliada com comparação de qualidade de texto, não apenas velocidade.
+1. **Real page cadence:** CDP delivers frames according to the compositor, load and encoding. Exporting at 60 fps smooths camera/cursor but does not create new frames for scroll and app animations. A dedicated GPU/compositor capture with timestamps needs another backend and a benchmark; duplicating frames does not solve this limit.
+2. **Semantic context:** focus considers rectangles and compact containers. It does not interpret the meaning of charts, results or route changes. The script still needs to pick suitable selectors/results and `focus` for editorial reading.
+3. **Special cursors:** canvas, iframes and custom pointers are not fully detected. The current vectors represent three shapes, not official reproductions of the full macOS cursor set.
+4. **Legibility of old captures:** re-exporting improves composition and camera but does not recover resolution already lost in old JPEGs. `sourcePixelsPerOutputPixelAtMaxZoom` below 1 indicates pixel upscaling.
+5. **Export time:** Retina PNG and more samples cost CPU. Measure with the session's `render.json`; numbers from old versions do not guarantee current performance. Hardware acceleration should be evaluated by comparing text quality, not just speed.
 
-## Verificação
+## Verification
 
-`npm test` cobre comportamento e regressões, incluindo geometria, rampas temporais, detalhe de pixels e transições de cursor. `npm run check` verifica sintaxe. O demo longo exercita 38 passos, com formulários, menus, scroll, relatório e resultados assíncronos. Os frames da nova captura foram conferidos em resolução física de 2880×1800. A conclusão visual e os números da exportação estão em `recordings/extended-demo-20260915-retina/`.
+`npm test` covers behavior and regressions, including geometry, time ramps, pixel detail and cursor transitions. `npm run check` checks syntax. The long demo exercises 38 steps, with forms, menus, scroll, a report and async results. Frames from the new capture were checked at a physical resolution of 2880×1800. The visual conclusion and export numbers are in `recordings/extended-demo-20260915-retina/`.
 
-Testes e metadados não demonstram equivalência visual ao Screen Studio nem garantem conforto subjetivo para todos os roteiros.
+Tests and metadata do not demonstrate visual equivalence to Screen Studio nor guarantee subjective comfort for every script.
