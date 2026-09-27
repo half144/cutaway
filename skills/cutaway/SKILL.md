@@ -1,9 +1,9 @@
 ---
-name: agent-screen
+name: cutaway
 description: Record polished browser workflow demos with animated zoom, a smooth cursor, motion blur, and local MP4 export. Use for web UI demos and tutorials in one Chromium tab.
 ---
 
-# Agent Screen
+# Cutaway
 
 Turn the requested workflow into one JSON plan, then capture and export it with the bundled CLI. The CLI controls Playwright; no additional model or video service is needed.
 

@@ -1,4 +1,4 @@
-# Agent Screen
+# Cutaway
 
 A local tool that lets agents record web app demos with animated zoom, a smooth cursor and video composition. First working version: a CLI, a skill and a complete example. Screen Studio is the visual reference; this project is not affiliated with it and does not yet match its editor.
 
@@ -36,7 +36,7 @@ Install the skill in Codex:
 node scripts/install-skill.mjs
 ```
 
-The installer links `skills/agent-screen` into `$CODEX_HOME/skills` (or `~/.codex/skills`). This project folder must stay available. It does not replace an existing skill. The skill can be invoked as `$agent-screen` once the environment reloads its skill list.
+The installer links `skills/cutaway` into `$CODEX_HOME/skills` (or `~/.codex/skills`). This project folder must stay available. It does not replace an existing skill. The skill can be invoked as `$cutaway` once the environment reloads its skill list.
 
 ## Scripts for agents
 
@@ -145,7 +145,7 @@ Motion blur integrates temporal samples of camera and cursor motion, spaced at m
 
 The default background is Sonoma Horizon (Sonoma hills at dusk), available after `npm run wallpapers`; without imported wallpapers it uses the user-supplied macOS wallpaper saved at `assets/macos-wallpaper.png` (preset `macos`). The image fills the output without distortion, center-cropped when needed. The gradient presets remain available. The window has a vector browser bar (traffic lights and address, without the query string), light or dark to match the top of the page, and stands out from the background only through a three-layer shadow, with no outline, as in Screen Studio: no dark fill sits under the window, so the page's anti-aliased edge blends straight into the wallpaper. Wallpaper, margin, window, page and cursor form a single scene: in the overview the margin shows around the screen and, during zoom, the whole scene scales and moves continuously with the camera. The wallpaper may remain visible at the edges when the framing calls for it, avoiding abrupt position changes during the animation. With `balanced` pacing, stretches where nothing changes on screen (no gesture, click, key or scroll, and no visible repaint; a blinking text caret or a small spinner doesn't count) that last longer than 1.1 s keep 0.35 s of stillness at each end and play the middle 3.5× faster; an explicit `focus` keeps 1.8 s of reading time. Recording starts once the page stops animating, with the cursor on a spot that opens no tooltip or hover. Output is H.264/MP4 with fast-start for web playback. The file is tagged 1-13-1 (BT.709 primaries and matrix, sRGB transfer), in the bitstream and the `colr` atom, so QuickTime and Safari don't wash out the colors.
 
-More backgrounds: `npm run wallpapers` converts the macOS wallpapers installed on this Mac (plus a still from video wallpapers such as Tahoe) to 4K JPEG in `assets/wallpapers/`; `node scripts/import-wallpapers.mjs --download` also downloads the ones macOS only fetches on demand (Big Sur, Catalina, Chroma, Dome, Peak, Hello…), from the same official catalog System Settings uses (~1.5 GB, cached in `~/Library/Caches/agent-screen`). Each file becomes a preset by name (`--preset tahoe-day`). The folder is kept out of git: the wallpapers belong to Apple, are licensed with the Mac and must not be redistributed.
+More backgrounds: `npm run wallpapers` converts the macOS wallpapers installed on this Mac (plus a still from video wallpapers such as Tahoe) to 4K JPEG in `assets/wallpapers/`; `node scripts/import-wallpapers.mjs --download` also downloads the ones macOS only fetches on demand (Big Sur, Catalina, Chroma, Dome, Peak, Hello…), from the same official catalog System Settings uses (~1.5 GB, cached in `~/Library/Caches/cutaway`). Each file becomes a preset by name (`--preset tahoe-day`). The folder is kept out of git: the wallpapers belong to Apple, are licensed with the Mac and must not be redistributed.
 
 ## Session files
 

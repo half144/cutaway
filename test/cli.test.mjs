@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { parseCliArgs } from '../src/cli/options.mjs';
 
 const run = promisify(execFile);
-const cli = fileURLToPath(new URL('../skills/agent-screen/scripts/run.mjs', import.meta.url));
+const cli = fileURLToPath(new URL('../skills/cutaway/scripts/run.mjs', import.meta.url));
 const plan = fileURLToPath(new URL('../examples/demo.json', import.meta.url));
 
 test('doctor takes no positional input; validate requires a plan', () => {

@@ -113,7 +113,7 @@ export function waitForStableTarget(element, limit = 2000) {
 // are seen. Each changed element is measured when it changes, while a closing panel is still on screen.
 export function watchChanges() {
   const root = document.documentElement;
-  const watch = window.__agentScreenChanges = { lastChange: performance.now(), box: null, elements: [], seen: new WeakSet() };
+  const watch = window.__cutawayChanges = { lastChange: performance.now(), box: null, elements: [], seen: new WeakSet() };
   watch.measure = element => {
     const box = element.getBoundingClientRect();
     const left = Math.max(0, box.left), top = Math.max(0, box.top);
@@ -147,7 +147,7 @@ export function watchChanges() {
 // from one that fills the screen (a chart redrawing, a panel opening). A presenter lets a menu finish
 // opening before moving to it.
 export function waitForSettled({ limit, quiet = 120 }) {
-  const watch = window.__agentScreenChanges;
+  const watch = window.__cutawayChanges;
   return new Promise(resolve => {
     const beginning = performance.now();
     function check() {

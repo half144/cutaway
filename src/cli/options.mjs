@@ -1,11 +1,11 @@
 import { parseArgs } from 'node:util';
 
-export const help = `agent-screen — cinematic browser recordings for agents
+export const help = `cutaway — cinematic browser recordings for agents
 
-  agent-screen doctor
-  agent-screen validate <plan.json>
-  agent-screen record <plan.json> --out <new-directory> [--headed] [--capture-only]
-  agent-screen render <recording-directory> [--output <video.mp4>]
+  cutaway doctor
+  cutaway validate <plan.json>
+  cutaway record <plan.json> --out <new-directory> [--headed] [--capture-only]
+  cutaway render <recording-directory> [--output <video.mp4>]
 
 Rendering: --width 1920 --height 1080 --fps 60 --zoom 1.8 --blur 0.75
            --cursor-size 2 --padding 0.09 --preset macos|dusk|midnight|pearl|<wallpaper>

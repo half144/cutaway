@@ -15,7 +15,7 @@ const output = fileURLToPath(new URL('../assets/wallpapers/', import.meta.url));
 const system = '/System/Library/Desktop Pictures';
 const force = process.argv.includes('--force');
 const catalog = 'https://mesu.apple.com/assets/macos/com_apple_MobileAsset_DesktopPicture/com_apple_MobileAsset_DesktopPicture.xml';
-const cache = join(homedir(), 'Library/Caches/agent-screen/wallpapers');
+const cache = join(homedir(), 'Library/Caches/cutaway/wallpapers');
 
 async function files(directory, pattern) {
   if (!existsSync(directory)) return [];
