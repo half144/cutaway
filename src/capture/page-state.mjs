@@ -254,3 +254,24 @@ export function targetContext(element) {
   }
   return null;
 }
+
+// Runs before the page's own scripts, on every document: development overlays and banners never reach a frame.
+// One rule per selector, so a selector the browser rejects cannot void the others.
+export function hideElements(selectors) {
+  const style = document.createElement('style');
+  style.textContent = selectors.map(selector => `${selector} { display: none !important; }`).join('\n');
+  const attach = () => document.documentElement.append(style);
+  if (document.documentElement) attach();
+  else document.addEventListener('DOMContentLoaded', attach, { once: true });
+}
+
+export function invalidSelectors(selectors) {
+  return selectors.filter(selector => {
+    try {
+      document.querySelector(selector);
+      return false;
+    } catch {
+      return true;
+    }
+  });
+}

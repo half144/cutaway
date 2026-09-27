@@ -68,3 +68,30 @@ test('capture rejects silently downscaled compositor frames', async () => {
   await recorder.pending;
   assert.throws(() => recorder.assertHealthy(), /expected 2880×1800, received 1440×900/);
 });
+
+test('an upload is a click whose file chooser receives the plan files', async () => {
+  const base = { url: 'https://example.com' };
+  const [upload] = validatePlan({ ...base, steps: [{ action: 'upload', selector: '#cover', file: 'cover.jpg' }] }).steps;
+  assert.deepEqual(upload, { action: 'click', selector: '#cover', file: ['cover.jpg'] });
+  assert.throws(() => validatePlan({ ...base, steps: [{ action: 'upload', selector: '#cover' }] }), /file must be/);
+  assert.throws(() => validatePlan({ ...base, steps: [{ action: 'click', selector: '#cover', file: 'a.jpg' }] }), /upload step/);
+
+  let received;
+  const box = { x: 50, y: 50, width: 100, height: 40 };
+  const locator = { waitFor: async () => {}, count: async () => 1, evaluate: async () => null, boundingBox: async () => box, click: async () => {} };
+  const page = {
+    locator: () => locator,
+    mouse: { move: async () => {}, down: async () => {}, up: async () => {} },
+    waitForEvent: async event => event === 'filechooser' && { setFiles: async files => { received = files; } },
+    evaluate: async () => null,
+  };
+  const runner = new ActionRunner(page, { points: [], clicks: [], focuses: [] }, () => 0, { x: 100, y: 70 });
+  await runner.run({ ...upload, pause: 0 }, 0);
+  assert.deepEqual(received, ['cover.jpg']);
+});
+
+test('hide takes a non-empty list of selectors', () => {
+  const plan = { url: 'https://example.com', steps: [{ action: 'wait' }] };
+  assert.deepEqual(validatePlan({ ...plan, hide: ['nextjs-portal'] }).hide, ['nextjs-portal']);
+  for (const hide of [[], 'nextjs-portal', [''], [1]]) assert.throws(() => validatePlan({ ...plan, hide }), /hide/);
+});

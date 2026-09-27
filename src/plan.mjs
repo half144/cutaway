@@ -1,9 +1,9 @@
-import { readFile } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { devices } from 'playwright';
 
-const actions = new Set(['click', 'type', 'scroll', 'wait', 'focus', 'press']);
+const actions = new Set(['click', 'type', 'scroll', 'wait', 'focus', 'press', 'upload']);
 // On a phone the same gestures read as a tap and a swipe.
 const aliases = { tap: 'click', swipe: 'scroll' };
 // Space the phone's system UI takes above and below the page, in CSS pixels: the status bar and the
@@ -51,11 +51,19 @@ export function validatePlan(plan) {
   if (plan.timeout !== undefined && (!Number.isInteger(plan.timeout) || plan.timeout < 1 || plan.timeout > 120000)) {
     throw new Error('timeout must be an integer from 1 to 120000 milliseconds.');
   }
+  if (plan.hide !== undefined && (!Array.isArray(plan.hide) || !plan.hide.length
+    || !plan.hide.every(selector => typeof selector === 'string' && selector.trim()))) {
+    throw new Error('hide must be a non-empty array of CSS selectors.');
+  }
   const steps = plan.steps.map(step => aliases[step?.action] ? { ...step, action: aliases[step.action] } : step);
   for (const [index, step] of steps.entries()) {
     const fail = message => { throw new Error(`Step ${index + 1}: ${message}`); };
     if (!step || !actions.has(step.action)) fail('unsupported action.');
-    if (['click', 'type', 'focus'].includes(step.action) && !step.selector) fail('selector is required.');
+    if (['click', 'type', 'focus', 'upload'].includes(step.action) && !step.selector) fail('selector is required.');
+    if (step.action === 'upload' && ![step.file].flat().every(file => typeof file === 'string' && file)) {
+      fail('file must be a path or a non-empty array of paths.');
+    }
+    if (step.file !== undefined && step.action !== 'upload') fail('file belongs to an upload step.');
     if (step.selector !== undefined && typeof step.selector !== 'string') fail('selector must be a string.');
     if (step.expect !== undefined && (typeof step.expect !== 'string' || !step.expect)) fail('expect must be a non-empty selector.');
     if (step.action === 'type' && typeof step.text !== 'string') fail('text must be a string.');
@@ -70,7 +78,9 @@ export function validatePlan(plan) {
       }
     }
   }
-  return { ...plan, viewport, captureScale, device, steps };
+  // An upload is a click on the control that opens the file chooser; the runner answers the chooser.
+  const actionSteps = steps.map(step => step.action === 'upload' ? { ...step, action: 'click', file: [step.file].flat() } : step);
+  return { ...plan, viewport, captureScale, device, steps: actionSteps };
 }
 
 export async function loadPlan(planPath) {
@@ -78,5 +88,11 @@ export async function loadPlan(planPath) {
   if (typeof plan?.url === 'string' && plan.url.startsWith('file:./')) {
     plan.url = pathToFileURL(resolve(dirname(planPath), plan.url.slice(5))).href;
   }
-  return validatePlan(plan);
+  const validated = validatePlan(plan);
+  // Upload paths are relative to the plan, and a missing file fails before the browser opens.
+  for (const step of validated.steps.filter(step => step.file)) {
+    step.file = step.file.map(file => resolve(dirname(planPath), file));
+    for (const file of step.file) await access(file).catch(() => { throw new Error(`Upload file not found: ${file}`); });
+  }
+  return validated;
 }

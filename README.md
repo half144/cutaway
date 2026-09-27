@@ -63,10 +63,11 @@ The agent inspects the app, finds the selectors and writes a JSON file like [exa
 | `scroll` | `y`, `duration` | Relative scroll in pixels: starts fast and glides to a stop |
 | `press` | `key` | Shortcut or key on the currently focused element; modifier combos appear in the video |
 | `wait` | `duration` | Pause in seconds |
+| `upload` | `selector`, `file` | Clicks the control that opens the file chooser and answers it with `file` (a path or array of paths relative to the JSON file); no native dialog opens |
 
 Every step accepts `pause` (seconds after the action) and `expect` (a selector that must become visible). Without `pause`, the capture picks the rhythm: after clicks and keys it waits for animations and DOM changes to finish (up to 0.6 s) and records the area of the page that changed; then comes a short, varying breath like a person's, not a fixed beat. An `expect` result stays on screen for 0.6 s + 0.15 s per word of its headline (0.8–1.6 s), long enough to register the change without reading the whole panel; if the next step acts inside the result, the pause is short. The camera frames the result together with the clicked control when both fit, or moves to it; a large result (page, dialog) is shown in the overview. `expect` doesn't check text or request completion: select a real success indicator. Ambiguous selectors, missing elements and unmet expectations stop the recording. The manifest records the error and export refuses incomplete sessions.
 
-The default viewport is 1440×810 (16:9, like the export), so the window gets even margins. `file:./demo.html` is resolved relative to the JSON file. For an authenticated app, `--storage-state /path/session.auth.json` loads an existing Playwright state. `--headed` opens the browser with its UI.
+The default viewport is 1440×810 (16:9, like the export), so the window gets even margins. `file:./demo.html` is resolved relative to the JSON file. Selectors are Playwright locators, so `role=textbox[name="Email"]` and `button:has-text("Save")` work alongside CSS. `hide` at the plan root takes CSS selectors hidden from the first frame on, such as `["nextjs-portal"]` for the Next.js dev tools badge. For an authenticated app, `--storage-state /path/session.auth.json` loads an existing Playwright state. `--headed` opens the browser with its UI.
 
 ## Phones
 
@@ -220,7 +221,7 @@ References studied: [Screen Studio — animations](https://screen.studio/guide/a
 
 - Records scripts run by the CLI itself in a single Chromium tab; it doesn't record the history of the work or attach to a tab another agent is already using.
 - Camera and cursor render at 60 fps by default. Interface capture follows the browser compositor's pace; 60 fps output doesn't guarantee 60 distinct app frames per second.
-- No audio, webcam, native windows, popups, drag-and-drop or visual timeline editing.
+- No audio, webcam, native windows, popups, drag-and-drop or visual timeline editing. File choosers are answered by `upload` without opening the native dialog.
 - Scrolls are captured in 4× slow motion and played back at real speed: the browser delivers 11–50 fps while it paints new content at 2×, so a real-time capture stepped visibly; in slow motion every output frame gets its own capture (~200 fps effective in the dashboard demo). On phones, the animations a tap or key sets off are slowed the same way. Other page animations are captured as they happen, and the temporal blur covers camera and cursor without synthesizing in-between interface frames.
 - Changing the output aspect ratio keeps the capture's aspect ratio and adds margin; there is no automatic reframing of desktop recordings for vertical formats. Record with a phone `device` for a vertical video.
 - Uses Skia and libx264 on the CPU, in parallel processes. On an Apple M4 a 26 s demo exports in ~46 s at the default 1080p60 `high`, and in ~17 s at 1280×720 with `--quality standard` (previously ~140 s). GPU composition and a hardware encoder still need implementation and benchmarking.
