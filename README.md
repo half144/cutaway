@@ -52,30 +52,48 @@ No AI model, cloud service or upload is involved: Playwright drives Chromium, Sk
 
 ## 🚀 Quick start
 
-Requires **Node.js 22+**, **FFmpeg** on the `PATH` and Playwright's Chromium.
+Requires **Node.js 22+** and **FFmpeg** (`brew install ffmpeg` on macOS).
 
 ```sh
+curl -fsSL https://raw.githubusercontent.com/half144/cutaway/master/install.sh | bash
+```
+
+The installer downloads Cutaway into `~/.cutaway`, installs its dependencies and Chromium, and links the skill into Claude Code (`~/.claude/skills`) and Codex (`~/.codex/skills`) when they are installed. `CUTAWAY_HOME` changes the folder; a skill link that already points elsewhere is left alone.
+
+**Updates are automatic.** Once a day, when the skill runs, the install fast-forwards to the latest `master` before anything loads, and reinstalls dependencies when they changed. Offline or with local edits it keeps the installed version. `CUTAWAY_NO_UPDATE=1` turns it off, and running the installer again updates on the spot. Clones made by hand never update themselves.
+
+Then ask your agent for a recording (`/cutaway record the checkout flow` in Claude Code, `$cutaway` in Codex), or run the demo yourself:
+
+```sh
+node ~/.cutaway/src/cli.mjs record ~/.cutaway/examples/demo.json --out /tmp/cutaway-demo
+```
+
+The demo opens a local mock app, edits a project name and shows the result. Use a new `--out` folder for every recording.
+
+<details>
+<summary><b>Install from a clone</b></summary>
+
+```sh
+git clone https://github.com/half144/cutaway.git && cd cutaway
 npm ci
 npx playwright install chromium
-npm run demo            # → recordings/demo/video.mp4
+npm run demo                                         # → recordings/demo/video.mp4
+node scripts/install-skill.mjs                       # links the skill into Codex
+ln -s "$PWD/skills/cutaway" ~/.claude/skills/cutaway # links the skill into Claude Code
 ```
 
-The demo opens a local mock app, edits a project name and shows the result. To record your own plan, use a new folder each time:
+The skill runs the CLI through its link, so keep the clone where it is.
+
+</details>
+
+<details>
+<summary><b>Uninstall</b></summary>
 
 ```sh
-node src/cli.mjs record my-plan.json --out recordings/my-demo
+rm -rf ~/.cutaway ~/.claude/skills/cutaway ~/.codex/skills/cutaway
 ```
 
-### Use it from an agent
-
-The skill in [`skills/cutaway`](skills/cutaway) teaches an agent to write the plan, record and deliver the MP4.
-
-| Agent | Install |
-| --- | --- |
-| Codex | `node scripts/install-skill.mjs` (links into `$CODEX_HOME/skills` or `~/.codex/skills`) |
-| Claude Code | `ln -s "$PWD/skills/cutaway" ~/.claude/skills/cutaway` |
-
-The skill links to this folder, so keep it where it is. Then ask for a recording (`/cutaway record the checkout flow`) or invoke `$cutaway` in Codex.
+</details>
 
 ## 📝 Writing a plan
 
