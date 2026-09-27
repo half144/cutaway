@@ -1,9 +1,5 @@
 <div align="center">
 
-<img width="120" height="120" style="border-radius: 100px;" alt="Imagem do ChatGPT 27 de set  de 2026, 11_16_11" src="https://github.com/user-attachments/assets/de029b3d-8394-4b59-8a34-31199ef14565" />
-
-
-
 # 🎬 Cutaway
 
 **Polished web app demos, recorded by your agent.**
