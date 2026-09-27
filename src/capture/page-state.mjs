@@ -77,7 +77,7 @@ export async function scrollIntoComfort([element, companion, slowdown = 1, measu
   });
 }
 
-export function waitForStableTarget(element) {
+export function waitForStableTarget(element, limit = 2000) {
   return new Promise(resolve => {
     const beginning = performance.now();
     let previous = element.getBoundingClientRect();
@@ -86,7 +86,7 @@ export function waitForStableTarget(element) {
       const box = element.getBoundingClientRect();
       stable = Math.abs(box.x - previous.x) + Math.abs(box.y - previous.y) < 0.1 ? stable + 1 : 0;
       previous = box;
-      if ((performance.now() - beginning > 100 && stable >= 4) || performance.now() - beginning > 2000) resolve();
+      if ((performance.now() - beginning > 100 && stable >= 4) || performance.now() - beginning > limit) resolve();
       else requestAnimationFrame(check);
     }
     requestAnimationFrame(check);

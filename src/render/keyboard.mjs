@@ -1,10 +1,13 @@
 import { clamp, easeOut } from '../motion.mjs';
 import { uiFont } from './toolbar.mjs';
-// An iPhone keyboard without the suggestion bar, in points, including the strip with the globe and
-// microphone above the home indicator. Four rows of 42 pt keys, 54 pt apart.
+// An iOS 26 keyboard without the suggestion bar, in points: a light panel with rounded top corners and
+// white keys, special keys included, then the strip with the globe above the home indicator. Four rows
+// of 42 pt keys, 54 pt apart.
 const height = 291;
 const rowPitch = 54;
 const keyHeight = 42;
+const keyRadius = 8.5;
+const panelRadius = 26;
 const side = 3;
 const gap = 6;
 const openSeconds = 0.32;
@@ -13,8 +16,8 @@ const closeSeconds = 0.25;
 const pressSeconds = 0.1;
 
 const themes = {
-  light: { base: '#d1d4da', key: '#ffffff', special: '#aab0bb', shadow: '#898a8e', ink: '#000000' },
-  dark: { base: '#2b2b2e', key: '#6b6b6e', special: '#46464a', shadow: '#1a1a1c', ink: '#ffffff' },
+  light: { base: '#d5d8dd', key: '#ffffff', pressed: '#aeb3bc', ink: '#1c1c1e' },
+  dark: { base: '#252527', key: '#5c5c60', pressed: '#3c3c3f', ink: '#ffffff' },
 };
 
 // The keyboard is on screen only while text is typed: it rises as the field is tapped, stays for a
@@ -99,17 +102,20 @@ function letterRows(width) {
   const keyWidth = (width - side * 2 - gap * 9) / 10;
   const pitch = keyWidth + gap;
   const row = (letters, x, y) => [...letters].map((letter, index) => ({ id: letter, label: letter, x: x + index * pitch, y, width: keyWidth }));
-  const wide = (width - side * 2) * 0.225;
   const specialWidth = keyWidth * 1.3;
+  const small = keyWidth * 1.25;
+  const returnWidth = keyWidth * 2.6;
+  const bottom = rowPitch * 3;
   return [
     ...row('qwertyuiop', side, 0),
     ...row('asdfghjkl', side + pitch / 2, rowPitch),
     { id: 'shift', x: side, y: rowPitch * 2, width: specialWidth, special: true },
     ...row('zxcvbnm', (width - 7 * keyWidth - 6 * gap) / 2, rowPitch * 2),
     { id: 'delete', x: width - side - specialWidth, y: rowPitch * 2, width: specialWidth, special: true },
-    { id: 'numbers', label: '123', x: side, y: rowPitch * 3, width: wide, special: true, small: true },
-    { id: ' ', label: 'space', x: side + wide + gap, y: rowPitch * 3, width: width - side * 2 - wide * 2 - gap * 2, small: true },
-    { id: '\n', label: 'return', x: width - side - wide, y: rowPitch * 3, width: wide, special: true, small: true },
+    { id: 'numbers', label: '123', x: side, y: bottom, width: small, special: true, small: true },
+    { id: 'emoji', x: side + small + gap, y: bottom, width: small, special: true },
+    { id: ' ', x: side + small * 2 + gap * 2, y: bottom, width: width - side * 2 - small * 2 - returnWidth - gap * 3 },
+    { id: '\n', glyph: 'return', x: width - side - returnWidth, y: bottom, width: returnWidth, special: true },
   ];
 }
 
@@ -167,13 +173,24 @@ function drawGlyph(context, id, x, y, unit) {
     context.lineTo(x, y + 10 * unit);
     context.ellipse(x, y, 4.5 * unit, 10 * unit, 0, 0, Math.PI * 2);
     context.stroke();
-  } else if (id === 'mic') {
-    context.roundRect(x - 4 * unit, y - 11 * unit, 8 * unit, 14 * unit, 4 * unit);
-    context.moveTo(x - 7.5 * unit, y - 1 * unit);
-    context.arc(x, y - 1 * unit, 7.5 * unit, Math.PI, 0, true);
-    context.moveTo(x, y + 6.5 * unit);
-    context.lineTo(x, y + 10 * unit);
+  } else if (id === 'return') {
+    context.moveTo(x + 7 * unit, y - 6 * unit);
+    context.lineTo(x + 7 * unit, y + 1.5 * unit);
+    context.lineTo(x - 7 * unit, y + 1.5 * unit);
+    context.moveTo(x - 3 * unit, y - 2.5 * unit);
+    context.lineTo(x - 7 * unit, y + 1.5 * unit);
+    context.lineTo(x - 3 * unit, y + 5.5 * unit);
     context.stroke();
+  } else if (id === 'emoji') {
+    context.arc(x, y, 9.5 * unit, 0, Math.PI * 2);
+    context.moveTo(x + 5 * unit, y + 1.5 * unit);
+    context.arc(x, y + 1.5 * unit, 5 * unit, 0, Math.PI);
+    context.stroke();
+    for (const eye of [-3.3, 3.3]) {
+      context.beginPath();
+      context.arc(x + eye * unit, y - 3 * unit, 1.2 * unit, 0, Math.PI * 2);
+      context.fill();
+    }
   }
 }
 
@@ -195,14 +212,14 @@ function drawCallout(context, key, character, width, unit, theme, origin) {
   const left = b.x + 1 * unit;
   const right = b.x + (bubble.width - 1) * unit;
   const neckTop = b.y + (bubble.height - 6) * unit;
-  context.roundRect(b.x, b.y, bubble.width * unit, bubble.height * unit, 9 * unit);
+  context.roundRect(b.x, b.y, bubble.width * unit, bubble.height * unit, 12 * unit);
   context.moveTo(left, neckTop);
   context.lineTo(right, neckTop);
   context.bezierCurveTo(right, neckTop + 12 * unit, k.x + key.width * unit, k.y - 2 * unit, k.x + key.width * unit, k.y + 4 * unit);
   context.lineTo(k.x, k.y + 4 * unit);
   context.bezierCurveTo(k.x, k.y - 2 * unit, left, neckTop + 12 * unit, left, neckTop);
   context.closePath();
-  context.roundRect(k.x, k.y, key.width * unit, keyHeight * unit, 5 * unit);
+  context.roundRect(k.x, k.y, key.width * unit, keyHeight * unit, keyRadius * unit);
   context.fill();
   context.restore();
   context.fillStyle = theme.ink;
@@ -219,31 +236,30 @@ export function drawKeyboard(context, screen, unit, state, dark) {
   const top = screen.y + screen.height - height * unit * state.shown;
   context.save();
   context.fillStyle = theme.base;
-  context.fillRect(screen.x, top, screen.width, height * unit);
+  context.beginPath();
+  context.roundRect(screen.x, top, screen.width, height * unit, [panelRadius * unit, panelRadius * unit, 0, 0]);
+  context.fill();
   const keys = state.layout === 'numeric' ? numberPad(width) : letterRows(width);
   const origin = { x: screen.x, y: top + 8 * unit };
   const pressed = keyFor(state.pressed, keys);
+  context.textAlign = 'center';
+  context.textBaseline = 'middle';
   for (const key of keys) {
     const x = origin.x + key.x * unit;
     const y = origin.y + key.y * unit;
+    // Letters pop up above the key instead; other keys darken while pressed.
+    const down = key === pressed && (key.special || key.id === ' ' || state.layout === 'numeric');
     if (!key.bare) {
-      const down = key === pressed && (key.special || key.id === ' ' || state.layout === 'numeric');
-      context.fillStyle = theme.shadow;
+      context.fillStyle = down ? theme.pressed : theme.key;
       context.beginPath();
-      context.roundRect(x, y + 1 * unit, key.width * unit, keyHeight * unit, 5 * unit);
-      context.fill();
-      context.fillStyle = key.special !== down ? theme.special : theme.key;
-      context.beginPath();
-      context.roundRect(x, y, key.width * unit, keyHeight * unit, 5 * unit);
+      context.roundRect(x, y, key.width * unit, keyHeight * unit, keyRadius * unit);
       context.fill();
     }
     context.fillStyle = theme.ink;
     context.strokeStyle = theme.ink;
-    context.textAlign = 'center';
-    context.textBaseline = 'middle';
     const middle = { x: x + key.width / 2 * unit, y: y + keyHeight / 2 * unit };
     if (key.label === undefined) {
-      drawGlyph(context, key.id, middle.x, middle.y, unit);
+      drawGlyph(context, key.glyph ?? key.id, middle.x, middle.y, unit);
     } else if (key.sub !== undefined) {
       context.font = `${25 * unit}px ${uiFont}`;
       context.fillText(key.label, middle.x, middle.y - (key.sub ? 4 : 0) * unit);
@@ -256,11 +272,9 @@ export function drawKeyboard(context, screen, unit, state, dark) {
   }
   if (state.layout !== 'numeric') {
     drawGlyph(context, 'globe', screen.x + 29 * unit, origin.y + (rowPitch * 4 + 16) * unit, unit);
-    drawGlyph(context, 'mic', screen.x + screen.width - 29 * unit, origin.y + (rowPitch * 4 + 16) * unit, unit);
-    if (pressed && !pressed.special && pressed.id !== ' ' && pressed.id !== '\n') {
+    if (pressed && !pressed.special && pressed.id !== ' ') {
       drawCallout(context, pressed, state.pressed, width, unit, theme, origin);
     }
   }
   context.restore();
 }
-

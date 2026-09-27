@@ -56,9 +56,25 @@ test('a tap holds the finger down on the glass and is kept for the touch indicat
   const pressing = runner.press(0.05);
   time = 1.08;
   await pressing;
-  assert.deepEqual(sent.map(event => event.type), ['touchStart', 'touchEnd']);
+  assert.deepEqual(sent.filter(event => event.method === 'Input.dispatchTouchEvent').map(event => event.type), ['touchStart', 'touchEnd']);
   assert.deepEqual(sent[0].touchPoints[0], { x: 120, y: 300, radiusX: 11, radiusY: 11 });
   assert.deepEqual(timeline.touches, [{ t: 1, up: 1.08, points: [{ t: 1, x: 120, y: 300 }] }]);
+});
+
+test('what a tap sets off animates 4× slower while captured and is kept as slow motion until it settles', async () => {
+  let time = 1;
+  const { runner, sent, timeline } = touchRunner(() => time);
+  const pressing = runner.press(0.01);
+  time = 1.1;
+  await pressing;
+  const order = sent.map(event => event.type ?? event.playbackRate);
+  assert.deepEqual(order, ['touchStart', 0.25, 'touchEnd'], 'slowed before the finger lifts and the click fires');
+  time = 2.3;
+  await runner.settled();
+  assert.equal(sent.at(-1).playbackRate, 1);
+  assert.deepEqual(timeline.slowMotion, [{ start: 1.1, end: 2.3, factor: 4 }]);
+  await runner.settled();
+  assert.equal(timeline.slowMotion.length, 1, 'settling twice records one span');
 });
 
 test('a drag moves the finger past the touch slop, eases to rest and records a slow-motion span', async () => {

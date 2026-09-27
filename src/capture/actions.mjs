@@ -30,6 +30,8 @@ export class ActionRunner {
     this.movementIndex = 0;
     this.difficulty = 0;
     this.approach = null;
+    // How much slower than real time page animations run while captured.
+    this.animationSlowdown = 1;
   }
 
   async captureCursor(force = false) {
@@ -233,6 +235,13 @@ export class ActionRunner {
     }
   }
 
+  pressKey(key) {
+    return this.page.keyboard.press(key);
+  }
+
+  // The interface has settled after an action.
+  async settled() {}
+
   typeCharacter(character) {
     return this.page.keyboard.type(character);
   }
@@ -298,7 +307,7 @@ export class ActionRunner {
     } else if (step.action === 'press') {
       (this.timeline.keys ??= []).push({ t: this.now(), key: step.key });
       if (!step.expect) await this.page.evaluate(watchChanges);
-      await this.page.keyboard.press(step.key);
+      await this.pressKey(step.key);
     } else if (step.action === 'wait' || step.action === 'focus') {
       await sleep((step.duration ?? 1.5) * 1000);
     }
@@ -311,20 +320,21 @@ export class ActionRunner {
       const result = this.page.locator(step.expect).first();
       await result.waitFor({ state: 'visible' });
       // Measure once it stops moving: a drawer or toast that slides in is first seen off to the side.
-      await result.evaluate(waitForStableTarget);
+      await result.evaluate(waitForStableTarget, 2000 * this.animationSlowdown);
       const info = await result.evaluate(resultInfo);
       resultWords = info.words;
       this.attachResult(step, focus, info.box);
       inside = await this.resultContains(step.expect, nextStep);
     } else if (step.action === 'click' || step.action === 'press') {
       // Let menus and transitions finish before the next gesture, as a presenter would.
-      const changed = await this.page.evaluate(waitForSettled, { limit: 600 }).catch(async error => {
+      const changed = await this.page.evaluate(waitForSettled, { limit: 600 * this.animationSlowdown }).catch(async error => {
         if (!/context was destroyed|navigat/i.test(error.message)) throw error;
         await this.page.waitForLoadState('load');
         return this.page.evaluate(() => ({ x: 0, y: 0, width: innerWidth, height: innerHeight }));
       });
       if (changed) this.attachResult(step, focus, changed);
     }
+    await this.settled();
     const expectationEnd = this.now();
     if (focus) focus.end = expectationEnd;
     this.previousFocus = focus ?? null;

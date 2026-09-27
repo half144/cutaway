@@ -24,6 +24,7 @@ export class TouchRunner extends ActionRunner {
     // The thumb waits over the lower middle of the screen.
     super(page, timeline, now, { x: width / 2, y: height * 0.7 });
     this.session = session;
+    this.animationSlowdown = scrollSlowdown;
     timeline.touches ??= [];
   }
 
@@ -54,16 +55,40 @@ export class TouchRunner extends ActionRunner {
     await sleep(seconds * 1000);
   }
 
+  // Animations and transitions a tap or key sets off (a sheet sliding up, a menu fading in) run 4× slower
+  // while captured, like scrolls, and the render plays them back at real speed: at 3× the screencast
+  // delivers ~20 fps, 9 frames for a 0.4 s slide. JS timers keep real time.
+  async slowAnimations() {
+    if (this.slowSince !== undefined) return;
+    await this.session.send('Animation.setPlaybackRate', { playbackRate: 1 / this.animationSlowdown });
+    this.slowSince = this.now();
+  }
+
+  async settled() {
+    if (this.slowSince === undefined) return;
+    await this.session.send('Animation.setPlaybackRate', { playbackRate: 1 });
+    (this.timeline.slowMotion ??= []).push({ start: this.slowSince, end: this.now(), factor: this.animationSlowdown });
+    this.slowSince = undefined;
+  }
+
   async press(seconds) {
     const t = this.now();
     await this.touch('touchStart', this.pointer);
     await sleep(seconds * 1000);
+    await this.slowAnimations();
     await this.touch('touchEnd');
     this.timeline.touches.push({ t, up: this.now(), points: [{ t, ...this.pointer }] });
   }
 
   // The on-screen keyboard shows which keys are pressed; a password's are not kept.
+  async pressKey(key) {
+    await this.slowAnimations();
+    return super.pressKey(key);
+  }
+
+  // Typing plays at real speed: only the tap that focused the field was slowed.
   async type(locator, text, focus, index) {
+    await this.settled();
     const field = await locator.evaluate(element => ({
       secret: element.type === 'password',
       numeric: /^(number|tel)$/.test(element.type) || /^(numeric|decimal|tel)$/.test(element.inputMode),
