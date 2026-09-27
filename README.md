@@ -1,75 +1,137 @@
-# Cutaway
+<div align="center">
 
-A local tool that lets agents record web app demos with animated zoom, a smooth cursor and video composition. First working version: a CLI, a skill and a complete example. Screen Studio is the visual reference; this project is not affiliated with it and does not yet match its editor.
+# 🎬 Cutaway
 
-## Example
+**Polished web app demos, recorded by your agent.**
+
+Animated zoom, a human cursor, motion blur and a macOS-style window, from a JSON plan to an MP4. Everything runs locally.
+
+![Node.js 22+](https://img.shields.io/badge/node-%E2%89%A522-5FA04E?logo=nodedotjs&logoColor=white)
+![Playwright](https://img.shields.io/badge/Playwright-Chromium-2EAD33?logo=playwright&logoColor=white)
+![FFmpeg](https://img.shields.io/badge/FFmpeg-libx264-007808?logo=ffmpeg&logoColor=white)
+![Output](https://img.shields.io/badge/output-1080p%20%C2%B7%2060%20fps-8A2BE2)
+![Agent skill](https://img.shields.io/badge/agent%20skill-Claude%20Code%20%C2%B7%20Codex-D97757)
+
+[Quick start](#-quick-start) · [Writing a plan](#-writing-a-plan) · [Phones](#-phones) · [Export](#-export) · [How it works](docs/how-it-works.md)
+
+</div>
+
+---
+
+## ✨ See it
 
 https://github.com/user-attachments/assets/3bd9af5a-d173-48a1-bcfd-838a1d5c9f93
 
-25 s, 1080p, 60 fps, unedited. Recorded from [examples/web-dashboard.json](examples/web-dashboard.json) on the [shadcn/ui example dashboard](https://ui.shadcn.com/view/new-york-v4/dashboard-01): the agent edits a target, assigns a reviewer, renames a section in its detail panel and switches the chart range. Zoom, cursor, pacing and background (Sonoma Horizon) are the tool's defaults.
+25 s, 1080p, 60 fps, unedited, from [`examples/web-dashboard.json`](examples/web-dashboard.json) on the [shadcn/ui example dashboard](https://ui.shadcn.com/view/new-york-v4/dashboard-01). Zoom, cursor, pacing and background are the defaults.
 
-The same edits on an iPhone 15 Pro, from [examples/web-dashboard-mobile.json](examples/web-dashboard-mobile.json) (see [Phones](#phones)):
+<details>
+<summary><b>📱 The same edits on an iPhone 15 Pro</b></summary>
 
 https://github.com/user-attachments/assets/2c80b028-ebcc-45d9-8aaf-a642d342df32
 
-30 s, 1080×1920, 60 fps, unedited: touch indicators instead of a cursor, drags down the page and sideways along the table, the iOS keyboard while typing and the phone frame are the defaults for a phone `device`.
+30 s, 1080×1920, 60 fps, unedited, from [`examples/web-dashboard-mobile.json`](examples/web-dashboard-mobile.json): touch indicators, drags, the iOS keyboard and the phone frame are the defaults for a phone `device`.
 
-## Try it
+</details>
 
-Requires Node.js 22+, FFmpeg on the PATH and Playwright's Chromium.
+## 🧭 What you get
+
+- **A camera that follows the action.** Screen Studio-style zoom on typing, menus and small results; the overview for anything that fills the screen.
+- **A cursor that moves like a person.** Arcs, Fitts' law timing, varied pauses and a click that presses in.
+- **A finished scene.** Wallpaper, browser window with traffic lights, shadow, motion blur and a shortcut pill.
+- **Honest timing.** Dead time is sped up; clicks, typing and results play at real speed.
+- **Phones too.** Touch input, a drawn device, status bar and on-screen keyboard.
+
+No AI model, cloud service or upload is involved: Playwright drives Chromium, Skia composes, FFmpeg encodes.
+
+> [!NOTE]
+> Screen Studio is the visual reference. Cutaway is not affiliated with it and does not match its editor.
+
+## 🚀 Quick start
+
+Requires **Node.js 22+**, **FFmpeg** on the `PATH` and Playwright's Chromium.
 
 ```sh
 npm ci
 npx playwright install chromium
-npm run demo
+npm run demo            # → recordings/demo/video.mp4
 ```
 
-The demo opens a local mock app, edits a project name and shows the result. [examples/web-dashboard.json](examples/web-dashboard.json) records a real web app, the shadcn/ui example dashboard: it edits a target, assigns a reviewer, renames a section in its detail panel and switches the chart range. Everything runs locally in the browser, but the example depends on the site being up and its labels staying the same. The MP4 is written to `recordings/demo/video.mp4`. Use a new folder when recording again:
+The demo opens a local mock app, edits a project name and shows the result. To record your own plan, use a new folder each time:
 
 ```sh
-node src/cli.mjs record examples/demo.json --out recordings/my-demo
+node src/cli.mjs record my-plan.json --out recordings/my-demo
 ```
 
-Install the skill in Codex:
+### Use it from an agent
 
-```sh
-node scripts/install-skill.mjs
-```
+The skill in [`skills/cutaway`](skills/cutaway) teaches an agent to write the plan, record and deliver the MP4.
 
-The installer links `skills/cutaway` into `$CODEX_HOME/skills` (or `~/.codex/skills`). This project folder must stay available. It does not replace an existing skill. The skill can be invoked as `$cutaway` once the environment reloads its skill list.
+| Agent | Install |
+| --- | --- |
+| Codex | `node scripts/install-skill.mjs` (links into `$CODEX_HOME/skills` or `~/.codex/skills`) |
+| Claude Code | `ln -s "$PWD/skills/cutaway" ~/.claude/skills/cutaway` |
 
-## Scripts for agents
+The skill links to this folder, so keep it where it is. Then ask for a recording (`/cutaway record the checkout flow`) or invoke `$cutaway` in Codex.
 
-The agent inspects the app, finds the selectors and writes a JSON file like [examples/demo.json](examples/demo.json). The CLI runs the script in an isolated Chromium context. It uses no other AI model, service account or upload.
+## 📝 Writing a plan
+
+A plan is a JSON file: a URL and the steps a person would take.
 
 ```json
 {
   "url": "http://localhost:3000",
-  "viewport": { "width": 1440, "height": 810 },
+  "hide": ["nextjs-portal"],
   "steps": [
-    { "action": "click", "selector": "#edit", "pause": 1 },
-    { "action": "type", "selector": "#title", "text": "New title" },
+    { "action": "click", "selector": "#edit" },
+    { "action": "type", "selector": "role=textbox[name=\"Title\"]", "text": "New title" },
+    { "action": "upload", "selector": "button:has-text(\"Choose cover\")", "file": "cover.jpg" },
     { "action": "click", "selector": "#save", "expect": "#saved-message" },
     { "action": "focus", "selector": "#updated-title", "duration": 1.5 }
   ]
 }
 ```
 
-| Action | Parameters | Behavior |
+Selectors are [Playwright locators](https://playwright.dev/docs/other-locators): CSS, `role=…[name="…"]`, `:has-text()` and `:text-is()`. Each must match exactly one element.
+
+### Actions
+
+| Action | Parameters | What it does |
 | --- | --- | --- |
-| `click` | `selector` | Moves the cursor like a person aiming, clicks and waits for the interface to settle |
-| `type` | `selector`, `text` | Focuses the field, clears existing content and types at a human rhythm; doesn't re-click a field that already has focus |
+| `click` | `selector` | Aims like a person, clicks and waits for the interface to settle |
+| `type` | `selector`, `text` | Focuses the field, clears it and types at a human rhythm |
+| `upload` | `selector`, `file` | Clicks the control that opens the file chooser and hands it `file` (a path or array, relative to the plan); no native dialog opens |
 | `focus` | `selector`, `duration` | Frames an element without clicking; tall regions are read from the top |
 | `scroll` | `y`, `duration` | Relative scroll in pixels: starts fast and glides to a stop |
-| `press` | `key` | Shortcut or key on the currently focused element; modifier combos appear in the video |
+| `press` | `key` | A key or shortcut on the focused element (`Enter`, `ControlOrMeta+K`) |
 | `wait` | `duration` | Pause in seconds |
-| `upload` | `selector`, `file` | Clicks the control that opens the file chooser and answers it with `file` (a path or array of paths relative to the JSON file); no native dialog opens |
 
-Every step accepts `pause` (seconds after the action) and `expect` (a selector that must become visible). Without `pause`, the capture picks the rhythm: after clicks and keys it waits for animations and DOM changes to finish (up to 0.6 s) and records the area of the page that changed; then comes a short, varying breath like a person's, not a fixed beat. An `expect` result stays on screen for 0.6 s + 0.15 s per word of its headline (0.8–1.6 s), long enough to register the change without reading the whole panel; if the next step acts inside the result, the pause is short. The camera frames the result together with the clicked control when both fit, or moves to it; a large result (page, dialog) is shown in the overview. `expect` doesn't check text or request completion: select a real success indicator. Ambiguous selectors, missing elements and unmet expectations stop the recording. The manifest records the error and export refuses incomplete sessions.
+### Step options
 
-The default viewport is 1440×810 (16:9, like the export), so the window gets even margins. `file:./demo.html` is resolved relative to the JSON file. Selectors are Playwright locators, so `role=textbox[name="Email"]` and `button:has-text("Save")` work alongside CSS. `hide` at the plan root takes CSS selectors hidden from the first frame on, such as `["nextjs-portal"]` for the Next.js dev tools badge. For an authenticated app, `--storage-state /path/session.auth.json` loads an existing Playwright state. `--headed` opens the browser with its UI.
+| Option | What it does |
+| --- | --- |
+| `expect` | A selector that must become visible: the real success indicator, not an always-present container. The camera frames it with the control. |
+| `pause` | Seconds to hold after the step. Leave it out: the recorder picks a human rhythm and holds results long enough to read. |
+| `hold` | Seconds to keep a click or tap pressed (0.05–5), for a long press. |
 
-## Phones
+### Plan options
+
+| Option | Default | What it does |
+| --- | --- | --- |
+| `url` | required | `http:`, `https:` or `file:` (`file:./page.html` is relative to the plan) |
+| `viewport` | `1440×810` | Browser size, 16:9 like the export |
+| `device` | none | A phone from Playwright's device list; see [Phones](#-phones) |
+| `captureScale` | `2` (`3` on phones) | Source pixel density; `3` for 4K exports |
+| `hide` | none | CSS selectors removed from every frame, such as the Next.js dev badge |
+| `timeout` | `10000` | Action time limit in milliseconds (up to 120000) |
+
+Ambiguous selectors, missing elements and unmet expectations stop the recording, and export refuses incomplete sessions. For an app behind a login, pass `--storage-state /path/session.auth.json` with a saved Playwright state; `--headed` shows the browser.
+
+> [!WARNING]
+> The recorder really performs each step. A local frontend can still point at a production API or database, so check where it writes before recording a step that saves, pays or sends something.
+
+## 📱 Phones
+
+Add `device` and write `tap` and `swipe` in place of `click` and `scroll`. The same plan records on desktop and phone.
 
 ```json
 {
@@ -78,201 +140,83 @@ The default viewport is 1440×810 (16:9, like the export), so the window gets ev
   "steps": [
     { "action": "tap", "selector": "#add", "expect": "#new-task" },
     { "action": "type", "selector": "#task-title", "text": "Review the mobile prototype" },
-    { "action": "tap", "selector": "#save", "expect": "#toast" },
     { "action": "swipe", "y": 420 },
     { "action": "tap", "selector": "#task", "hold": 0.7 }
   ]
 }
 ```
 
-`device` takes a phone from Playwright's device list (`iPhone 15 Pro`, `iPhone 17 Pro`, `Pixel 7`, `Galaxy S24`…). The page runs in Playwright's Chromium with the phone's user agent, touch input and mobile layout; the viewport is the screen minus the status bar and home indicator (393×764 on an iPhone 15 Pro), captured at 3×. `tap` and `swipe` are `click` and `scroll` under other names, so the same script records on a desktop and on a phone. `hold` (0.05–5 s) turns a tap into a long press. [examples/web-dashboard-mobile.json](examples/web-dashboard-mobile.json) records the shadcn/ui dashboard of the example above; [examples/mobile-demo.json](examples/mobile-demo.json) records a local mock task app, with no network.
+- **Devices:** any portrait phone from Playwright's list (`iPhone 15 Pro`, `iPhone 17 Pro`, `Pixel 7`, `Galaxy S24`…), emulated in Chromium with its user agent, touch input and layout, captured at 3×.
+- **Video:** 1080×1920 with a drawn phone, status bar, touch indicators and an iOS-style keyboard while typing.
+- **Other formats:** `--width 1080 --height 1350` for a feed post, `--width 1920 --height 1080` for landscape, `--window none` for the page alone.
+- **Not covered:** Safari's rendering quirks (it's Chromium, not WebKit) and tablets.
 
-- **Gestures:** taps and drags are CDP touch events, so the page receives real touch and pointer events, clicks and native scrolling. Between taps the thumb travels unseen: its travel time (Fitts' law) is the beat before the tap, and the camera sets off with it. A scroll is a finger drag that departs quickly and comes to rest before lifting, so the page stops with it instead of flinging; long scrolls take several strokes of at most 60% of the screen. Auto-scroll to a target out of view is a drag too, down the page and then sideways along a table wider than the screen. A drag starts where the fingertip touches no control or chart, since a dropdown may open on touch and a chart shows a tooltip under the finger.
-- **Animations:** what a tap or key sets off (a sheet sliding up, a menu fading in) is captured in slow motion, like scrolls: Chromium runs the page's CSS animations and transitions 4× slower (`Animation.setPlaybackRate`) until the interface settles, and the render plays that span back at real speed. At 3× the screencast delivers ~20 fps, 9 frames for a 0.4 s sheet; in slow motion it gets ~110 per second of video. JavaScript timers and animations driven by `requestAnimationFrame` keep real time, so they play faster during that span.
-- **Touch indicator:** instead of a cursor, a translucent white disc the size of a fingertip (44 pt) with a faint ring, so it reads on light and dark pages. It grows in as the finger lands, follows drags, lingers 0.15 s after the finger lifts and fades out in 0.3 s while spreading to 1.33×, like the iOS show-touches tools ([ShowTime](https://github.com/KaneCheshire/ShowTime), [Fingertips](https://github.com/mapbox/Fingertips)). Screen Studio records a real iPhone over USB and cannot see taps, so it shows none.
-- **Frame:** the export defaults to 1080×1920 (9:16) with a vector phone around the page: a dark titanium body, 55 pt screen corners, Dynamic Island and side buttons on iPhones, a punch-hole camera on Android. The status bar (9:41, signal, Wi-Fi, battery) and the home indicator are drawn over bars in the color of the page's top and bottom edges, as a browser tints them. `--width 1080 --height 1350` makes a 4:5 feed video and `--width 1920 --height 1080` places the phone in a landscape video; `--window none` draws the page alone.
-- **Camera:** a close-up fills the video's width with the screen and only moves vertically, so the whole width of the app stays in view and subjects are framed by height. Swipes play in the overview.
-- **Keyboard:** while text is typed, an iOS 26-style keyboard rises from the bottom (white keys on a light panel with rounded top corners), each key pops up above itself and a return key pressed right after typing lights up. Text without letters is typed on the 123 plane, and numeric fields get a number pad. A field the keyboard would cover is lifted above it, as iOS does, and the camera frames the field with the keyboard. The keyboard is gone before the next tap, so it never hides one. To draw the keys, the timeline keeps the typed characters, except in password fields.
+Local example with no network: [`examples/mobile-demo.json`](examples/mobile-demo.json).
 
-Emulation is Chromium, not WebKit: the layout matches the phone's size, touch and user agent, not Safari's rendering quirks. The system bars are drawn, not captured, and there is no browser address bar. Tablets aren't supported.
+## 🎞️ Export
 
-## Finishing and export
+`record` captures and exports in one go. `render` re-exports a saved capture without repeating the actions.
 
 ```sh
-# Capture without compositing
-node src/cli.mjs record script.json --out recordings/delivery --capture-only
-
-# Lightweight preview
-node src/cli.mjs render recordings/delivery --width 1280 --height 720
-
-# Re-export the same capture without repeating the actions
-node src/cli.mjs render recordings/delivery --preset midnight --zoom 2 --window none
+node src/cli.mjs record plan.json --out recordings/take --capture-only   # capture only
+node src/cli.mjs render recordings/take --width 1280 --height 720        # quick preview
+node src/cli.mjs render recordings/take --preset midnight --zoom 2       # another look
 ```
 
 | Option | Default | Range |
 | --- | --- | --- |
-| `--width`, `--height` | 1920 × 1080; 1080 × 1920 for phones | 320–3840, even dimensions |
-| `--fps` | 60 | 24–60, integer |
-| `--zoom` | 1.5 | 1–3; close-up level; 1 turns zoom off |
+| `--width`, `--height` | 1920×1080 (1080×1920 on phones) | 320–3840, even |
+| `--fps` | 60 | 24–60 |
+| `--quality` | `high` (CRF 16) | `high`, `standard` (about 3× faster) |
+| `--zoom` | 1.5 | 1–3; 1 turns zoom off |
 | `--blur` | 0.75 | 0–1; 0 turns motion blur off |
 | `--cursor-size` | 2 | 0.5–4 |
 | `--padding` | 0.09 | 0–0.25 |
-| `--preset` | sonoma-horizon (macos without imported wallpapers) | macos, dusk, midnight, pearl and the imported wallpapers (`tahoe-day`, `sonoma-horizon`, `big-sur`…) |
-| `--window` | browser; device for phones | browser (bar with traffic lights and address), device (the phone), none |
-| `--keys` | combos | combos (shortcuts and named keys such as Esc, Enter, Tab), all, none |
-| `--pacing` | balanced | balanced (speeds up dead time), original |
-| `--quality` | high | high (x264 medium, CRF 16), standard (x264 veryfast, CRF 16: same fidelity as the old CRF 18, half the encoding time) |
-| `--output` | `<recording>/video.mp4` | Alternative output path |
+| `--preset` | `sonoma-horizon` (`macos` without imported wallpapers) | `macos`, `dusk`, `midnight`, `pearl` or an imported wallpaper |
+| `--window` | `browser` (`device` on phones) | `browser`, `device`, `none` |
+| `--keys` | `combos` | `combos`, `all`, `none` |
+| `--pacing` | `balanced` | `balanced` (speeds up dead time), `original` |
+| `--output` | `<recording>/video.mp4` | any path |
 
-Zoom is for local detail. A click whose effect fills the screen (the chart redraws, a panel opens, a column disappears) happens in the overview, without pushing in on the control only to pull out right after. Typing, menus and small effects get a close-up. Local actions close in time (up to 3 s apart) form a single shot at a constant zoom level. The camera moves with the hand: zooms and pans start when the cursor sets off toward the target, and the cursor can roam the central 60% of the frame before the camera follows it. So the cursor is never dragged across the screen after it stops, and a zoom-out that would end just before the cursor leaves happens together with its departure. Zoom holds for 1.8 s after the last click or 1.2 s after typing. Shots less than 1.5 s apart connect with a pan instead of returning to the overview; between close-ups up to 2.5 s apart on nearby subjects, the camera pulls back only halfway and returns, instead of going to the overview; shots that would be too short are dropped instead of flashing. A manual scroll ends the shot; the auto-scroll to the next target doesn't. A `focus` too large to magnify and a large result (dialog, new page) hold the overview between shots. The video always opens on the whole page: a `focus` before the first gesture doesn't zoom, and the first push-in happens with the first mouse movement. If the next shot frames the revealed result itself (for example, a `focus` on it up to 3.5 s later), the camera goes straight from the close-up to it without passing through the overview. When a shot's whole region fits in the frame, the framing stays still; otherwise the camera follows each target. In wide fields it frames the start of the text and follows the caret. The default level is 1.5×, reduced only when the region doesn't fit with a margin; a nearby, compact container is included when available.
+> [!TIP]
+> For PR evidence and bug repros, `--width 1280 --height 720 --quality standard` exports about 3× faster and keeps ~30 s under GitHub's 10 MB attachment limit.
 
-The camera uses two cascaded critically damped springs over zoom (on a log scale) and pan: it starts without a jolt, reaches 90% in ~0.6 s and settles in ~1.2 s, like Screen Studio's zoom. The main spring's speed follows the time until the next change: up to 1.5× faster when the next action is imminent, 0.8× before a long pause, so moves don't all last the same. From the overview, the zoom grows straight toward the target; when leaving, it pulls back from the same framing. At the end, the video waits for the last zoom-out to settle (1.2 s) and holds still for another 0.4 s. Near the edges, as in Screen Studio, the camera may show the wallpaper, limited to the scene plus its margin and to about 10% of the frame in close-ups.
+**More wallpapers:** `npm run wallpapers` converts the macOS wallpapers on this Mac to presets (`--preset tahoe-day`); add `--download` to `node scripts/import-wallpapers.mjs` for the ones macOS fetches on demand. They stay out of git, since they belong to Apple.
 
-The cursor is redrawn from the capture data:
+### Session files
 
-- **Smoothing:** as in Screen Studio, the cursor is drawn through a spring (stiffness 470, damping 70, mass 3, Screen Studio's default) that chases the hand slightly ahead: it starts gently, rounds corners and settles on arrival, with no noticeable lag. Near each click it is pinned to the exact point, as in Cap and openscreen.
-- **Path:** a visible arc (4–7% of the distance at its widest) always to the same side, with curvature and shape varying per gesture, peak speed before the midpoint and a long deceleration. Only small targets (< 24 px) get a final correction, of at most 120 ms; larger targets are hit in a single stroke.
-- **Duration:** follows Fitts' law for a nimble presenter, with lognormal variation between gestures and a readable top speed. The path is recorded with its planned timing: a busy page doesn't stretch the stroke on screen.
-- **Pauses:** the cursor stays still while the result appears, as in a real recording. When the next target is already on screen and there is time, the hand moves to it in a single stroke during the pause and waits on top of it; the camera leaves with that stroke. No slow drifts, two-step approaches or random jitter.
-- **Click:** the wait before clicking varies like a person's (longer on small targets and before saving, deleting or confirming). The pointer shrinks to 0.8× in the 130 ms before the button goes down, stays pressed for at most 0.14 s and springs back with a slight rebound (1.04×).
-- **Shape changes:** between arrow, hand and I-beam, the new shape appears with a 0.2 s crossfade and scale.
-- **Tilt:** the pointer tilts 1° per 480 px/s of horizontal speed, up to 8°.
-- **Visibility:** hides when typing starts, as on macOS, and reappears 250 ms before moving again. It also shrinks and hides after 3.5 s idle (never during a scroll), or just before the camera moves on its own and would drag the idle cursor more than 1/16 of the frame width, or out of the frame (a `focus` far from the pointer, a result's zoom-out). Fades take ~0.2 s with easing. Hides shorter than 0.5 s are skipped so the cursor doesn't blink, and a cursor that would hide before its first movement doesn't show at the opening.
-- **Size:** grows slightly with zoom.
+| File | Contents |
+| --- | --- |
+| `video.mp4` | The finished video |
+| `poster.png` | A frame from the middle, for a quick look |
+| `frames/*.png` | Lossless source frames |
+| `timeline.json` | Timestamps, cursor, clicks, focus regions and status |
+| `render.json` | Export settings, timing and a `motion` summary (shots, zoom share, shortest close-up) |
+| `camera.json` | The camera path, for diagnostics |
+| `workflow.json` | Preflight, browser setup, recording and export timing |
 
-Before typing, the hand takes 0.25–0.45 s to go from the mouse to the keyboard; a field that already has content is selected (the highlight shows for ~0.2 s) and overwritten. Typing has lognormal intervals around 100 words per minute, a slower first key in each word, pauses after commas and periods, and occasional hesitations mid-word. Modifier shortcuts (for example `ControlOrMeta+K`) and named keys that change the page on their own (Esc, Enter, Tab) appear in a dark pill at the bottom of the video; a lone Esc or Enter doesn't hide the cursor. Auto-scroll glides the target, and the next target when it fits too, to just above the middle of the screen instead of pinning it to the edge.
+The frames show whatever the page shows, including typed text. On phones, the timeline also keeps the typed characters to draw the keyboard, except in password fields.
 
-Motion blur integrates temporal samples of camera and cursor motion, spaced at most ~2 px apart (up to 16 per frame in `high`). The page is rasterized once per frame, and the blur samples reuse that image with a small offset; it doesn't apply a uniform blur to the screen. New captures use lossless PNG and `captureScale: 2`: a 1440×810 viewport produces 2880×1620 frames without changing the page layout. Chromium uses matching physical and emulated scale, verified on every frame. Zoom samples the original image directly; it avoids downscaling the page before magnifying it. Use `captureScale: 3` in the script for 4K exports with more resolution headroom, within the 8192-pixel-per-dimension limit.
+## 🚧 Limits
 
-The default background is Sonoma Horizon (Sonoma hills at dusk), available after `npm run wallpapers`; without imported wallpapers it uses the user-supplied macOS wallpaper saved at `assets/macos-wallpaper.png` (preset `macos`). The image fills the output without distortion, center-cropped when needed. The gradient presets remain available. The window has a vector browser bar (traffic lights and address, without the query string), light or dark to match the top of the page, and stands out from the background only through a three-layer shadow, with no outline, as in Screen Studio: no dark fill sits under the window, so the page's anti-aliased edge blends straight into the wallpaper. Wallpaper, margin, window, page and cursor form a single scene: in the overview the margin shows around the screen and, during zoom, the whole scene scales and moves continuously with the camera. The wallpaper may remain visible at the edges when the framing calls for it, avoiding abrupt position changes during the animation. With `balanced` pacing, stretches where nothing changes on screen (no gesture, click, key or scroll, and no visible repaint; a blinking text caret or a small spinner doesn't count) that last longer than 1.1 s keep 0.35 s of stillness at each end and play the middle 3.5× faster; an explicit `focus` keeps 1.8 s of reading time. Recording starts once the page stops animating, with the cursor on a spot that opens no tooltip or hover. Output is H.264/MP4 with fast-start for web playback. The file is tagged 1-13-1 (BT.709 primaries and matrix, sRGB transfer), in the bitstream and the `colr` atom, so QuickTime and Safari don't wash out the colors.
+- One Chromium tab, driven by the CLI. No popups, native windows, drag-and-drop, audio or webcam.
+- Page animations are captured at the browser's pace: 60 fps output doesn't mean 60 distinct app frames. Scrolls (and phone animations) are captured in slow motion to compensate.
+- Changing the aspect ratio adds margin; desktop recordings aren't reframed for vertical video. Use a phone `device` instead.
+- Composition and encoding run on the CPU. GPU composition and hardware encoding aren't implemented.
+- Custom canvas or iframe cursors aren't captured; the arrow, hand and I-beam are.
 
-More backgrounds: `npm run wallpapers` converts the macOS wallpapers installed on this Mac (plus a still from video wallpapers such as Tahoe) to 4K JPEG in `assets/wallpapers/`; `node scripts/import-wallpapers.mjs --download` also downloads the ones macOS only fetches on demand (Big Sur, Catalina, Chroma, Dome, Peak, Hello…), from the same official catalog System Settings uses (~1.5 GB, cached in `~/Library/Caches/cutaway`). Each file becomes a preset by name (`--preset tahoe-day`). The folder is kept out of git: the wallpapers belong to Apple, are licensed with the Mac and must not be redistributed.
-
-## Session files
-
-- `frames/*.png`: lossless high-density source frames; older sessions with JPEG remain renderable.
-- `timeline.json`: timestamps, cursor positions, clicks, focus regions and status; on a phone, touches and the typed keys.
-- `video.mp4`: the composited video.
-- `poster.png`: a frame from the middle of the export for quick inspection.
-- `camera.json`: the camera path, for diagnostics.
-- `render.json`: parameters and real measurements of export time, the number of render processes and their sampled memory, summed. `motion` summarizes movement for objective tuning: shots, share of the video spent zoomed, shortest close-up, shortest return to the overview (low values signal "pumping"), skipped focuses and capture fps during scroll.
-
-The video file is replaced only after a successful export. Re-rendering may change the session's video and diagnostic files. The script contains the typed text; a desktop manifest doesn't duplicate it, but the frames naturally show the page's visible content. A phone manifest keeps the typed characters for the keyboard, except in password fields.
-
-## Architecture and dependencies
-
-```text
-Agent script → Playwright / Chromium → PNGs + timestamped events
-                                              ↓
-                              Camera + Skia composition → FFmpeg → MP4
-```
-
-The code is split by the responsibility of each stage:
-
-```text
-src/
-├── cli.mjs                 CLI entry point
-├── cli/options.mjs         flag parsing and normalization
-├── capture/
-│   ├── record.mjs          orchestrates the recording session
-│   ├── actions.mjs         runs steps and cursor movement
-│   ├── touch.mjs           phone gestures: taps, drags and keys
-│   ├── pacing.mjs          pause, movement and typing timing
-│   ├── page-state.mjs      DOM inspection, auto-scroll and caret position
-│   └── screencast.mjs      captures, checks resolution and persists CDP frames
-├── render/
-│   ├── index.mjs           plans the export, renders segments in parallel and joins them
-│   ├── segments.mjs        splits the frames into runs of about equal work
-│   ├── worker.mjs          process that renders one segment
-│   ├── compose.mjs         composes and encodes a run of frames
-│   ├── background.mjs      wallpaper, gradients and window shadow
-│   ├── wallpapers.mjs      background presets and the default
-│   ├── toolbar.mjs         browser bar: tone and drawing
-│   ├── device.mjs          phone frame, system bars and screen
-│   ├── keyboard.mjs        phone keyboard while typing
-│   ├── touch.mjs           touch indicators
-│   ├── scene.mjs           direct source composition and scene transform
-│   ├── cursor-art.mjs      cursor vectors
-│   ├── cursor.mjs          per-frame shape, visibility, tilt and click
-│   ├── keys.mjs            shortcut pill
-│   ├── focus.mjs           zoom shot planning
-│   ├── tracks.mjs          per-frame camera and cursor, simulated before compositing
-│   ├── metrics.mjs         motion metrics for `render.json`
-│   ├── pacing.mjs          time compression of waits with smooth ramps
-│   ├── stillness.mjs       detects frames with no visible change
-│   ├── encoder.mjs         FFmpeg encoding and segment joining
-│   └── settings.mjs        render defaults and validation
-├── motion.mjs              camera, easing and cursor path
-└── plan.mjs                script validation
-```
-
-`src/record.mjs` and `src/render.mjs` remain as public facades to keep existing imports stable.
-
-- [Playwright](https://playwright.dev/): actions, selectors and Chromium control.
-- [Chrome DevTools Protocol](https://chromedevtools.github.io/devtools-protocol/tot/Page/#method-startScreencast): frames timestamped by the compositor, with no screenshot polling for the video.
-- [@napi-rs/canvas](https://github.com/Brooooooklyn/canvas): native composition with Skia.
-- [FFmpeg](https://ffmpeg.org/): H.264 encoding and MP4 muxing.
-
-Capture and rendering are sequential and independent. Camera and cursor are simulated once for the whole video, so every output frame depends only on its own state and the camera of the frame before. The export splits the frames into contiguous segments of about equal work (a moving camera costs a page raster and its blur samples) and renders them in parallel processes, up to half the CPU cores and one per 2 GB of memory, each with its own encoder; FFmpeg then joins the segments without re-encoding. A lossless test render produced the same 1,574 frames, bit for bit, in one process and in five. Each process keeps only the current source frame and composition buffers (~0.3 GB at 1080p), applies adaptive sampling and respects its encoder's throughput. Camera metadata is proportional to duration; the source frames stay on disk. The reported memory doesn't include the Chromium or FFmpeg processes. Run one export at a time: a second one competes for the same cores.
-
-References studied: [Screen Studio — animations](https://screen.studio/guide/animations), [cursor](https://screen.studio/guide/cursor), [auto zoom](https://screen.studio/guide/auto-zoom), [Recordly](https://github.com/webadderallorg/Recordly) and [OpenScreen](https://github.com/siddharthvaddem/openscreen). The last two are full editing applications; none of their code or assets was incorporated. The implementation uses the libraries listed above and keeps the script and framing logic in this project.
-
-## Limits of this version
-
-- Records scripts run by the CLI itself in a single Chromium tab; it doesn't record the history of the work or attach to a tab another agent is already using.
-- Camera and cursor render at 60 fps by default. Interface capture follows the browser compositor's pace; 60 fps output doesn't guarantee 60 distinct app frames per second.
-- No audio, webcam, native windows, popups, drag-and-drop or visual timeline editing. File choosers are answered by `upload` without opening the native dialog.
-- Scrolls are captured in 4× slow motion and played back at real speed: the browser delivers 11–50 fps while it paints new content at 2×, so a real-time capture stepped visibly; in slow motion every output frame gets its own capture (~200 fps effective in the dashboard demo). On phones, the animations a tap or key sets off are slowed the same way. Other page animations are captured as they happen, and the temporal blur covers camera and cursor without synthesizing in-between interface frames.
-- Changing the output aspect ratio keeps the capture's aspect ratio and adds margin; there is no automatic reframing of desktop recordings for vertical formats. Record with a phone `device` for a vertical video.
-- Uses Skia and libx264 on the CPU, in parallel processes. On an Apple M4 a 26 s demo exports in ~46 s at the default 1080p60 `high`, and in ~17 s at 1280×720 with `--quality standard` (previously ~140 s). GPU composition and a hardware encoder still need implementation and benchmarking.
-- New captures record arrow, hand and I-beam from the DOM. Custom canvas/iframe cursors aren't captured; older sessions use the arrow.
-
-## Verification
+## 🧪 Development
 
 ```sh
-npm test
-npm run check
+npm test          # camera, cursor, pacing, plan validation, CLI
+npm run check     # syntax-checks every script
+npm run demo      # records and exports the local example end to end
 ```
 
-The tests cover camera geometry and stability, cursor path and interpolation, and script validation. The local example exercises capture, typing, clicks, the final result, composition and encoding. Watching the MP4 is still necessary: these tests don't measure beauty or show equivalence to Screen Studio.
+Tests don't judge how the video looks: watch the MP4. [`examples/extended-demo.json`](examples/extended-demo.json) runs 38 actions (forms, menus, scrolling, wide regions, simulated loads) against a local page for a longer check.
 
-## Fast path for agents
+## 📚 Learn more
 
-The skill reuses the URL, selectors and state already known from the task. Preparation should investigate only what the script is missing; it doesn't require auditing the project, reinstalling, a full rehearsal or a preview export. The `record` command already checks dependencies before the actions and delivers the MP4 in a single run. The default remains 1080p/60 fps for showcase videos. For PR evidence, bug repros and previews, `--width 1280 --height 720 --quality standard` exports about 3× faster and keeps ~30 s of video under GitHub's 10 MB attachment limit on free plans.
-
-```sh
-# Optional diagnosis: reports the tool's repository and needed fixes
-node src/cli.mjs doctor
-# Optional validation, no browser; doesn't check selectors against the app
-node src/cli.mjs validate examples/demo.json
-```
-
-Help and validation load only the modules they need and work without Canvas, Chromium or FFmpeg installed. Install dependencies in the tool's repository, never in the filmed project by mistake. The skill's runner works from another directory using absolute paths.
-
-`workflow.json` records preflight, browser setup, recording, export and the CLI total. Setup is part of the recording time and shouldn't be added again. The agent's preparation before the call isn't measured. The CLI timings also appear in the final JSON. Export failures explain how to reuse the capture with `render`.
-
-The camera intersects focus regions with the viewport before framing them. Containers larger than the visible area are centered when they don't fit in the comfort region. The animated position uses the space available at the current zoom, without clamping the position after the spring; this avoids jumps when leaving a close-up near the edges. The fix also applies to existing captures via `render`.
-
-After a click, the zoom returns to the overview on its normal schedule even if the app is still loading. A manual `focus` respects its duration. In older captures, the real end of typing may not be separated from the wait for a result.
-
-Between capture samples, the hand's path uses monotonic cubic interpolation, which preserves positions and click times without overshoot; the spring described above smooths the drawn cursor on top of it.
-
-## Long demo
-
-`examples/extended-demo.html` is a local mock workspace with a form, menus, checklist, notes, chart and report. `examples/extended-demo.json` runs 38 actions, including scrolling, focus on wide regions, keys, long typing and simulated loads. It doesn't reach external services.
-
-```sh
-node src/cli.mjs record examples/extended-demo.json --out recordings/extended-demo
-```
-
-Use a new folder when repeating. The deliberate loads let you evaluate the zoom pulling back after inactivity; the wide regions exercise legibility and automatic zoom reduction.
-
-## Current quality (2026-09-15)
-
-The `high` default uses a 2× PNG source, direct composition, up to 16 temporal samples and H.264 CRF 16. Conversion uses the BT.709 matrix with sRGB transfer tagged in the file. The encoder alternatives measured are in [docs/motion-review.md](docs/motion-review.md). `standard` uses x264 `veryfast` at CRF 16 and up to five samples, preserving the captured source. Measured against a lossless master of the same render, it matches the fidelity of the previous `fast`/CRF 18 (PSNR 48.4 vs 48.8 dB) with 45% less encoding CPU; `high` stays at 50.6 dB. The render reports the source resolution and pixel headroom at the highest zoom; values below 1 mean existing pixels are being magnified.
-
-Compact groups share scale and framing region. Scrolls end old focuses and the camera opens before scrolling; the next push-in waits for the target to be available. Scrolling schedules events in real time and drops delays, keeping the requested duration. Typing varies at word and punctuation boundaries.
-
-Long waits use continuous speed ramps, capped at 4×, keeping 550 ms at real speed at the edges. Movements, clicks and protected scrolls aren't compressed. Explicit `pause` and `focus` remain available for reading. [Map of improvements, references and limits](docs/quality-review.md).
-
-Earlier reviews are in the [technical history](docs/history.md).
+- [How it works](docs/how-it-works.md): pacing, camera, cursor, composition, phones, architecture and performance.
+- [Quality review](docs/quality-review.md) and [motion review](docs/motion-review.md): measurements and references.
+- [Technical history](docs/history.md).
