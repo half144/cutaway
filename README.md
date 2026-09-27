@@ -15,6 +15,7 @@ Animated zoom, a human cursor, motion blur and a macOS-style window, from a JSON
 ![FFmpeg](https://img.shields.io/badge/FFmpeg-libx264-007808?logo=ffmpeg&logoColor=white)
 ![Output](https://img.shields.io/badge/output-1080p%20%C2%B7%2060%20fps-8A2BE2)
 ![Agent skill](https://img.shields.io/badge/agent%20skill-Claude%20Code%20%C2%B7%20Codex-D97757)
+![License: MIT](https://img.shields.io/badge/license-MIT-blue)
 
 [Quick start](#-quick-start) · [Writing a plan](#-writing-a-plan) · [Phones](#-phones) · [Export](#-export) · [How it works](docs/how-it-works.md)
 
@@ -242,3 +243,7 @@ Tests don't judge how the video looks: watch the MP4. [`examples/extended-demo.j
 - [How it works](docs/how-it-works.md): pacing, camera, cursor, composition, phones, architecture and performance.
 - [Quality review](docs/quality-review.md) and [motion review](docs/motion-review.md): measurements and references.
 - [Technical history](docs/history.md).
+
+## 📄 License
+
+[MIT](LICENSE). The macOS wallpapers imported by `npm run wallpapers` belong to Apple and are not covered by it.
