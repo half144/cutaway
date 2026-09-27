@@ -1,5 +1,7 @@
 # Revisão de qualidade — 15/09/2026
 
+Câmera, cursor, clique, digitação e composição foram revistos em 26/09; veja a [revisão de movimento e acabamento](motion-review.md). As decisões de captura e resolução abaixo continuam valendo.
+
 O objetivo é melhorar legibilidade, continuidade e ritmo em demonstrações web. As mudanças abaixo estão implementadas. Não houve cópia de código ou assets das aplicações de referência; os cursores vetoriais desta versão são próprios.
 
 ## Referências consultadas
@@ -30,8 +32,8 @@ O objetivo é melhorar legibilidade, continuidade e ritmo em demonstrações web
 | Digitação tinha ciclo mecânico de cinco teclas | Variação determinística por caractere, pequenas pausas entre palavras e pontuação | Ritmo reproduzível com menos repetição perceptível |
 | Esperas mudavam instantaneamente de velocidade | Rampas com velocidade/aceleração contínuas, bordas de 550 ms e máximo 4× | Testes numéricos verificam monotonicidade, limites e junções suaves |
 | Espera pelo próximo alvo não era considerada | Compressão de preparação longa quando há timestamps e nenhum movimento protegido | Reduz tempo ocioso sem comprimir cliques, mouse ou scroll |
-| Qualidade de entrega era fixa em CRF 18 | `--quality high` padrão: CRF 16, preset medium e até oito amostras; `standard`: CRF 18 e cinco | Mais reserva para texto/gradientes; custo maior de CPU e tamanho de arquivo |
-| Cores dependiam de conversão implícita | Matriz/primárias BT.709, faixa limitada e transferência sRGB identificadas | Conversão declarada para a fonte sRGB, verificável com ffprobe |
+| Qualidade de entrega era fixa em CRF 18 | `--quality high` padrão: CRF 16, preset medium e até oito amostras (16 desde a [segunda passada](motion-review.md#segunda-passada-acabamento-do-vídeo-medido)); `standard`: CRF 18 e cinco | Mais reserva para texto/gradientes; custo maior de CPU e tamanho de arquivo |
+| Cores dependiam de conversão implícita | Matriz/primárias BT.709, faixa limitada e transferência sRGB identificadas | Conversão declarada para a fonte sRGB, verificável com ffprobe. No FFmpeg 7.1+ as primárias e a transferência eram descartadas até 26/09; agora o filtro `setparams` as grava ([segunda passada](motion-review.md#segunda-passada-acabamento-do-vídeo-medido)) |
 
 ## Escolhas preservadas
 

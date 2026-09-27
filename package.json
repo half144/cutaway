@@ -10,7 +10,8 @@
   "scripts": {
     "test": "node --test test/*.test.mjs",
     "demo": "node src/cli.mjs record examples/demo.json --out recordings/demo",
-    "check": "node scripts/check.mjs"
+    "check": "node scripts/check.mjs",
+    "wallpapers": "node scripts/import-wallpapers.mjs"
   },
   "engines": {
     "node": ">=22"

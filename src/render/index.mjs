@@ -1,73 +1,67 @@
 import { createCanvas, loadImage } from '@napi-rs/canvas';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
-import { Camera, clamp, pointerAt } from '../motion.mjs';
+import { mix } from '../motion.mjs';
 import { backgrounds, createBackdrop } from './background.mjs';
-import { cursorAppearance, cursorEvents, CursorVisibility } from './cursor.mjs';
 import { VideoEncoder } from './encoder.mjs';
-import { createFrame, drawOverlay, SceneRenderer } from './scene.mjs';
-import { focusWindows, planFocusZooms, renewFocus, exportDuration } from './focus.mjs';
+import { createFrame, drawOverlay, overlayBounds, SceneRenderer } from './scene.mjs';
+import { drawKeys, keyEvents } from './keys.mjs';
+import { motionMetrics } from './metrics.mjs';
 import { paceTimeline } from './pacing.mjs';
+import { stillFrames } from './stillness.mjs';
 import { renderSettings } from './settings.mjs';
-
-function mix(a, b, t) {
-  return a + (b - a) * t;
-}
-
-function configureCanvas(canvas) {
-  const context = canvas.getContext('2d');
-  context.imageSmoothingEnabled = true;
-  context.imageSmoothingQuality = 'high';
-  return context;
-}
+import { toolbarHeight, toolbarStyle } from './toolbar.mjs';
+import { renderTracks } from './tracks.mjs';
 
 export async function render(directory, options = {}) {
   const settings = renderSettings(options);
-  const { width, height, fps, maxZoom, blur, cursorSize, padding, preset, pacing, quality } = settings;
+  const { width, height, fps, maxZoom, blur, cursorSize, padding, preset, pacing, quality, window: windowStyle, keys } = settings;
   const sourceTimeline = JSON.parse(await readFile(join(directory, 'timeline.json'), 'utf8'));
   if (sourceTimeline.status !== 'complete' || !sourceTimeline.frames.length) {
     throw new Error('Cannot render an incomplete recording. Inspect timeline.json.');
   }
-  const paced = paceTimeline(sourceTimeline, pacing);
+  const paced = paceTimeline(sourceTimeline, pacing, pacing === 'balanced' ? await stillFrames(sourceTimeline, directory) : undefined);
   const timeline = paced.timeline;
-
-  const focuses = planFocusZooms(focusWindows(timeline), timeline.viewport, maxZoom);
   const viewport = timeline.viewport;
-  const { frame, ratio } = createFrame(width, height, viewport, padding);
-  const backdrop = await createBackdrop(width, height, frame, backgrounds[preset]);
+
+  const toolbar = windowStyle === 'browser' ? await toolbarStyle(timeline, directory) : null;
+  const { frame, window, ratio, scene: sceneSize } = createFrame(width, height, viewport, padding, toolbar ? toolbarHeight : 0);
+  const { shots, report: shotReport, duration, frames } = renderTracks(timeline, {
+    scene: sceneSize, level: maxZoom, fps, top: toolbar ? -toolbarHeight : 0, ratio, width, height,
+  });
+  const backdrop = await createBackdrop(width, height, window, backgrounds[preset]);
   const output = createCanvas(width, height);
+  const outputContext = output.getContext('2d');
+  // Blur samples shift an output-resolution image by fractions of a pixel: bilinear is enough.
+  outputContext.imageSmoothingQuality = 'low';
   const sample = createCanvas(width, height);
+  const sampleContext = sample.getContext('2d');
   const overlay = createCanvas(width, height);
   const overlayContext = overlay.getContext('2d');
-  const outputContext = output.getContext('2d');
-  const sampleContext = configureCanvas(sample);
+  overlayContext.globalCompositeOperation = 'lighter';
   const scene = new SceneRenderer(width, height);
-  const camera = new Camera(viewport.width, viewport.height, { maxZoom });
   const outputPath = resolve(options.output ?? join(directory, 'video.mp4'));
   const encoder = new VideoEncoder(outputPath, width, height, fps, quality);
 
   const beginning = performance.now();
-  const duration = exportDuration(timeline, focuses, maxZoom);
-  const frameCount = Math.ceil(duration * fps);
-  const visibility = new CursorVisibility();
-  const cursorChanges = cursorEvents(timeline);
-  const cameraTrack = [];
+  const frameCount = frames.length;
+  const keyOverlay = keyEvents(timeline, keys);
   let sourceIndex = -1;
   let source;
-  let pointerIndex = 0;
-  let focusIndex = -1;
-  let clickIndex = -1;
-  let cursorIndex = 0;
   let peakZoom = 1;
-  let previousPoint;
-  let previousState = { x: viewport.width / 2, y: viewport.height / 2, zoom: 1 };
-  let rotation = 0;
+  let previousState = frames[0].camera;
   let maxRss = 0;
+
+  // Samples at most ~2 output pixels apart, so fast pans smear smoothly instead of ghosting in steps.
+  function sampleCount(velocity) {
+    if (blur === 0 || velocity <= 0.6) return 1;
+    return Math.min(quality === 'high' ? 16 : 5, Math.max(2, Math.ceil(velocity * blur / 2)));
+  }
 
   try {
     for (let i = 0; i < frameCount; i++) {
       encoder.assertHealthy();
-      const t = i / fps;
+      const { t, camera: state, cursor } = frames[i];
 
       let nextSourceIndex = Math.max(0, sourceIndex);
       while (nextSourceIndex + 1 < timeline.frames.length && timeline.frames[nextSourceIndex + 1].t <= t) {
@@ -78,49 +72,14 @@ export async function render(directory, options = {}) {
         source = await loadImage(join(directory, timeline.frames[sourceIndex].file));
       }
 
-      const sampled = pointerAt(timeline.points, t, pointerIndex);
-      pointerIndex = sampled.index;
-      const point = sampled.pointer;
-      const dx = previousPoint && point ? point.x - previousPoint.x : 0;
-      const dy = previousPoint && point ? point.y - previousPoint.y : 0;
-
-      while (focusIndex + 1 < focuses.length && focuses[focusIndex + 1].startAt <= t) {
-        focusIndex++;
-      }
-      const active = focuses[focusIndex];
-      if (t < timeline.duration) renewFocus(active, t, Math.hypot(dx, dy) * fps);
-      const focus = active && t < timeline.duration && t <= active.releaseAt ? active : null;
-      const state = camera.update(focus, focus?.manual ? null : point, 1 / fps);
+      const { point, previous } = cursor;
       peakZoom = Math.max(peakZoom, state.zoom);
-      cameraTrack.push({ t, ...state });
-
-      while (clickIndex + 1 < timeline.clicks.length && timeline.clicks[clickIndex + 1].t <= t) {
-        clickIndex++;
-      }
-      const clickAge = clickIndex >= 0 ? t - timeline.clicks[clickIndex].t : -1;
-      const appearance = cursorAppearance(cursorChanges, t, cursorIndex);
-      cursorIndex = appearance.index;
-      const typing = focus?.action === 'type' && t >= focus.t && t <= (focus.interactionEnd ?? focus.end);
-      const cursorActive = typing || Math.hypot(dx, dy) * fps > 7.2 || (clickAge >= 0 && clickAge < 0.15);
-      const opacity = visibility.update(t, cursorActive, 1 / fps);
-      const previousRotation = rotation;
-      rotation = mix(rotation, clamp(dx * fps / 6500, -0.08, 0.08), 1 - Math.pow(0.82, 60 / fps));
-
-      const cameraVelocity = Math.hypot(state.x - previousState.x, state.y - previousState.y) * ratio
-        + Math.abs(state.zoom - previousState.zoom) * width;
-      function sampleCount(velocity) {
-        if (blur === 0 || velocity <= 0.6) return 1;
-        return Math.min(quality === 'high' ? 8 : 5, Math.max(2, Math.ceil(velocity * blur / 2)));
-      }
-      const cameraSamples = sampleCount(cameraVelocity);
-      const cursorSamples = sampleCount(cameraVelocity + Math.hypot(dx, dy) * ratio * state.zoom);
 
       function temporalSample(sampleIndex, samples) {
         const fraction = samples === 1 ? 1 : 1 - blur + blur * (sampleIndex + 0.5) / samples;
-        const sampledPointer = point && {
-          x: mix(previousPoint?.x ?? point.x, point.x, fraction),
-          y: mix(previousPoint?.y ?? point.y, point.y, fraction),
-        };
+        const zoom = mix(previousState.zoom, state.zoom, fraction);
+        // Part of the scene, the pointer grows gently with the zoom instead of staying pinned in size.
+        const size = cursorSize * width / 1920 / Math.sqrt(zoom);
         return {
           width,
           height,
@@ -128,40 +87,56 @@ export async function render(directory, options = {}) {
           source,
           frame,
           viewport,
-          camera: {
-            x: mix(previousState.x, state.x, fraction),
-            y: mix(previousState.y, state.y, fraction),
-            zoom: mix(previousState.zoom, state.zoom, fraction),
+          toolbar,
+          camera: { x: mix(previousState.x, state.x, fraction), y: mix(previousState.y, state.y, fraction), zoom },
+          pointer: point && {
+            x: mix(previous?.x ?? point.x, point.x, fraction),
+            y: mix(previous?.y ?? point.y, point.y, fraction),
           },
-          pointer: sampledPointer,
-          click: timeline.clicks[clickIndex],
           cursor: {
-            ...appearance,
-            rotation: mix(previousRotation, rotation, fraction),
-            size: cursorSize * width / 1920 / mix(previousState.zoom, state.zoom, fraction),
-            clickAge,
-            opacity,
+            ...cursor.appearance,
+            rotation: mix(cursor.previousRotation, cursor.rotation, fraction),
+            size,
+            pixels: size * zoom,
+            press: cursor.press,
+            opacity: cursor.opacity,
           },
         };
       }
 
-      for (let sampleIndex = 0; sampleIndex < cameraSamples; sampleIndex++) {
-        scene.drawPage(sampleContext, temporalSample(sampleIndex, cameraSamples));
-        outputContext.globalAlpha = 1 / (sampleIndex + 1);
-        outputContext.drawImage(sample, 0, 0);
+      // Largest output displacement this frame: the pan plus the zoom's reach at the frame corners.
+      const cameraVelocity = Math.hypot(state.x - previousState.x, state.y - previousState.y) * ratio * state.zoom
+        + Math.abs(state.zoom - previousState.zoom) / state.zoom * Math.hypot(width, height) / 2;
+      const cameraSamples = sampleCount(cameraVelocity);
+      scene.renderPage(temporalSample(0, 1));
+      outputContext.drawImage(scene.page, 0, 0);
+      if (cameraSamples > 1) {
+        for (let sampleIndex = 0; sampleIndex < cameraSamples; sampleIndex++) {
+          outputContext.globalAlpha = 1 / (sampleIndex + 1);
+          scene.drawPageAs(outputContext, temporalSample(sampleIndex, cameraSamples));
+        }
+        outputContext.globalAlpha = 1;
       }
 
-      // Cursor motion must not force the entire page through extra expensive blur samples.
-      overlayContext.clearRect(0, 0, width, height);
-      overlayContext.globalCompositeOperation = 'lighter';
-      overlayContext.globalAlpha = 1 / cursorSamples;
-      for (let sampleIndex = 0; sampleIndex < cursorSamples; sampleIndex++) {
-        sampleContext.clearRect(0, 0, width, height);
-        drawOverlay(sampleContext, temporalSample(sampleIndex, cursorSamples));
-        overlayContext.drawImage(sample, 0, 0);
+      if (point && cursor.opacity > 0.002) {
+        const cursorSamples = sampleCount(cameraVelocity + cursor.travel * ratio * state.zoom);
+        const cursorFrames = Array.from({ length: cursorSamples }, (_, sampleIndex) => temporalSample(sampleIndex, cursorSamples));
+        const { x, y, right, bottom } = overlayBounds(cursorFrames);
+        if (right > x && bottom > y) {
+          // Average the cursor samples in isolation, then composite only the pixels they can touch.
+          const area = [x, y, right - x, bottom - y];
+          overlayContext.clearRect(...area);
+          overlayContext.globalAlpha = 1 / cursorSamples;
+          for (const cursorFrame of cursorFrames) {
+            sampleContext.clearRect(...area);
+            drawOverlay(sampleContext, cursorFrame);
+            overlayContext.drawImage(sample, ...area, ...area);
+          }
+          outputContext.drawImage(overlay, ...area, ...area);
+        }
       }
-      outputContext.globalAlpha = 1;
-      outputContext.drawImage(overlay, 0, 0);
+      drawKeys(outputContext, keyOverlay, t, width, height);
+
       await encoder.write(output.data());
       if (i === Math.floor(frameCount / 2)) {
         await writeFile(join(directory, 'poster.png'), await output.encode('png'));
@@ -171,7 +146,6 @@ export async function render(directory, options = {}) {
         process.stderr.write(`Rendering ${Math.round(i / frameCount * 100)}%\n`);
       }
       previousState = state;
-      previousPoint = point;
     }
 
     await encoder.finish();
@@ -181,6 +155,7 @@ export async function render(directory, options = {}) {
   }
 
   const elapsed = (performance.now() - beginning) / 1000;
+  const cameraTrack = frames.map(({ t, camera }) => ({ t, ...camera }));
   const report = {
     output: outputPath,
     duration,
@@ -196,7 +171,8 @@ export async function render(directory, options = {}) {
     renderSeconds: +elapsed.toFixed(2),
     renderFps: +(frameCount / elapsed).toFixed(1),
     sampledPeakRssMB: Math.round(maxRss / 1024 / 1024),
-    settings: { maxZoom, blur, cursorSize, padding, preset, pacing, quality },
+    settings: { maxZoom, blur, cursorSize, padding, preset, pacing, quality, window: windowStyle, keys },
+    motion: motionMetrics(cameraTrack, { shots, report: shotReport, timeline }),
     sourcePixels: { width: source.width, height: source.height },
     pageCache: { draws: scene.pageDraws, hits: scene.cacheHits },
     sourcePixelsPerOutputPixelAtMaxZoom: +(source.width / (frame.width * peakZoom)).toFixed(3),

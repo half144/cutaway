@@ -1,5 +1,12 @@
 const idleThreshold = 2.6;
 const preservedEdge = 0.55;
+// Dead time shorter than a pause for a breath is kept; longer stretches keep a beat of stillness on
+// each side and pass their middle faster. Nothing moves, so the speed-up is invisible.
+const staticThreshold = 1.1;
+const staticEdge = 0.35;
+const staticSpeed = 3.5;
+// An explicit focus holds its subject this long for reading before any trimming.
+const focusReading = 1.8;
 
 function pacedIdleDuration(duration) {
   if (duration <= idleThreshold) return duration;
@@ -13,6 +20,60 @@ function makeIdleSegment(start, end, kind) {
   return { start, end, duration: pacedIdleDuration(duration), kind };
 }
 
+function subtract(span, busy) {
+  let pieces = [span];
+  for (const block of busy) {
+    pieces = pieces.flatMap(piece => block.end <= piece.start || block.start >= piece.end ? [piece] : [
+      ...(block.start > piece.start ? [{ start: piece.start, end: block.start }] : []),
+      ...(block.end < piece.end ? [{ start: block.end, end: piece.end }] : []),
+    ]);
+  }
+  return pieces;
+}
+
+// What the viewer watches happen: pointer motion, clicks, keys, typing, scrolls, and an explicit
+// focus's reading time.
+function activity(timeline) {
+  const busy = [...(timeline.scrolls ?? [])];
+  const points = timeline.points ?? [];
+  for (let i = 1; i < points.length; i++) {
+    if (points[i].x !== points[i - 1].x || points[i].y !== points[i - 1].y) busy.push({ start: points[i - 1].t, end: points[i].t });
+  }
+  for (const click of timeline.clicks ?? []) busy.push({ start: click.t - 0.2, end: (click.up ?? click.t) + 0.35 });
+  for (const key of timeline.keys ?? []) busy.push({ start: key.t - 0.1, end: key.t + 0.3 });
+  for (const focus of timeline.focuses ?? []) {
+    if (focus.typingStart !== undefined) busy.push({ start: focus.typingStart - 0.1, end: (focus.interactionEnd ?? focus.end) + 0.1 });
+    const shown = focus.readyAt ?? focus.t;
+    if (focus.manual) busy.push({ start: shown, end: Math.min(focus.end, shown + focusReading) });
+  }
+  return busy;
+}
+
+// Stretches long enough to trim in which the viewer's input does nothing.
+export function quietSpans(timeline) {
+  return subtract({ start: 0, end: timeline.duration }, activity(timeline))
+    .filter(span => span.end - span.start > staticThreshold);
+}
+
+// Stretches where nothing on screen changes: no pointer motion, click, key, typing or scroll, and no
+// capture frame that looks different. Screencast frames only arrive when the page repaints; `still`
+// holds the frames whose repaint is imperceptible (a blinking caret, a small spinner).
+function staticSegments(timeline, still = new Set()) {
+  const busy = activity(timeline);
+  const frames = (timeline.frames ?? []).filter((frame, index) => index === 0 || !still.has(index));
+  const segments = [];
+  frames.forEach((frame, index) => {
+    const span = { start: frame.t + 0.05, end: frames[index + 1]?.t ?? timeline.duration };
+    for (const piece of subtract(span, busy)) {
+      const length = piece.end - piece.start;
+      if (length <= staticThreshold) continue;
+      const duration = staticEdge * 2 + (length - staticEdge * 2) / staticSpeed;
+      segments.push({ ...piece, duration, kind: 'static', edge: staticEdge });
+    }
+  });
+  return segments;
+}
+
 function removeOverlaps(segments) {
   const accepted = [];
   for (const segment of segments.sort((a, b) => a.start - b.start)) {
@@ -22,7 +83,7 @@ function removeOverlaps(segments) {
   return accepted;
 }
 
-function findIdleSegments(timeline) {
+function findIdleSegments(timeline, still) {
   const segments = [];
   const steps = timeline.steps ?? [];
 
@@ -58,7 +119,8 @@ function findIdleSegments(timeline) {
     if (a.x !== b.x || a.y !== b.y) protectedSpans.push({ start: a.t, end: b.t });
   }
   for (const click of timeline.clicks ?? []) protectedSpans.push({ start: click.t - 0.1, end: click.t + 0.2 });
-  return removeOverlaps(segments.filter(segment => !protectedSpans.some(span => span.start < segment.end && span.end > segment.start)));
+  const idle = segments.filter(segment => !protectedSpans.some(span => span.start < segment.end && span.end > segment.start));
+  return removeOverlaps([...idle, ...staticSegments(timeline, still)]);
 }
 
 // Integral of the minimum-jerk easing curve; speed and acceleration match at both seams.
@@ -89,13 +151,14 @@ function createTimeMap(segments) {
       const sourceDuration = segment.end - segment.start;
       const offset = time - segment.start;
       const outputStart = segment.start - removed;
-      if (offset <= preservedEdge) return outputStart + offset;
-      if (offset >= sourceDuration - preservedEdge) {
+      const edge = segment.edge ?? preservedEdge;
+      if (offset <= edge) return outputStart + offset;
+      if (offset >= sourceDuration - edge) {
         return outputStart + segment.duration - (sourceDuration - offset);
       }
-      const sourceMiddle = sourceDuration - preservedEdge * 2;
-      const outputMiddle = segment.duration - preservedEdge * 2;
-      return outputStart + preservedEdge + mapMiddle(offset - preservedEdge, sourceMiddle, outputMiddle);
+      const sourceMiddle = sourceDuration - edge * 2;
+      const outputMiddle = segment.duration - edge * 2;
+      return outputStart + edge + mapMiddle(offset - edge, sourceMiddle, outputMiddle);
     }
     return time - removed;
   };
@@ -111,11 +174,14 @@ function remapTimeline(source, mapTime) {
   const timeline = structuredClone(source);
   for (const frame of timeline.frames ?? []) mapKeys(frame, ['t'], mapTime);
   for (const point of timeline.points ?? []) mapKeys(point, ['t'], mapTime);
-  for (const click of timeline.clicks ?? []) mapKeys(click, ['t'], mapTime);
+  for (const click of timeline.clicks ?? []) mapKeys(click, ['t', 'up'], mapTime);
+  for (const key of timeline.keys ?? []) mapKeys(key, ['t'], mapTime);
   for (const cursor of timeline.cursors ?? []) mapKeys(cursor, ['t'], mapTime);
   for (const scroll of timeline.scrolls ?? []) mapKeys(scroll, ['start', 'end'], mapTime);
   for (const focus of timeline.focuses ?? []) {
-    mapKeys(focus, ['t', 'readyAt', 'interactionEnd', 'end'], mapTime);
+    mapKeys(focus, ['t', 'readyAt', 'approachStart', 'typingStart', 'interactionEnd', 'end'], mapTime);
+    for (const caret of focus.carets ?? []) mapKeys(caret, ['t'], mapTime);
+    if (focus.result) mapKeys(focus.result, ['t'], mapTime);
   }
   for (const step of timeline.steps ?? []) {
     mapKeys(step, ['start', 'actionStart', 'interactionEnd', 'expectationEnd', 'end'], mapTime);
@@ -124,12 +190,12 @@ function remapTimeline(source, mapTime) {
   return timeline;
 }
 
-export function paceTimeline(source, mode = 'balanced') {
+export function paceTimeline(source, mode = 'balanced', still) {
   if (mode === 'original') {
     return { timeline: source, report: { mode, adjustedGaps: 0, savedSeconds: 0 } };
   }
 
-  const segments = findIdleSegments(source);
+  const segments = findIdleSegments(source, still);
   const mapTime = createTimeMap(segments);
   const timeline = remapTimeline(source, mapTime);
   const savedSeconds = source.duration - timeline.duration;

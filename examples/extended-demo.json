@@ -1,9 +1,5 @@
 {
   "url": "file:./extended-demo.html",
-  "viewport": {
-    "width": 1440,
-    "height": 900
-  },
   "steps": [
     {
       "action": "focus",

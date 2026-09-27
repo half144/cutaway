@@ -1,16 +1,28 @@
 import { createCanvas } from '@napi-rs/canvas';
-import { drawClick, drawCursor } from './cursor-art.mjs';
+import { drawCursor } from './cursor-art.mjs';
+import { drawToolbar } from './toolbar.mjs';
 
-export function createFrame(width, height, viewport, padding) {
-  const ratio = Math.min(width * (1 - padding * 2) / viewport.width, height * (1 - padding * 2) / viewport.height);
-  const frame = {
+const windowRadius = 12;
+
+export function createFrame(width, height, viewport, padding, toolbar = 0) {
+  const ratio = Math.min(width * (1 - padding * 2) / viewport.width,
+    height * (1 - padding * 2) / (viewport.height + toolbar));
+  const window = {
     width: viewport.width * ratio,
-    height: viewport.height * ratio,
-    radius: 16 * width / 1920,
+    height: (viewport.height + toolbar) * ratio,
+    radius: windowRadius * ratio,
   };
-  frame.x = (width - frame.width) / 2;
-  frame.y = (height - frame.height) / 2;
-  return { frame, ratio };
+  window.x = (width - window.width) / 2;
+  window.y = (height - window.height) / 2;
+  const frame = {
+    x: window.x,
+    y: window.y + toolbar * ratio,
+    width: window.width,
+    height: viewport.height * ratio,
+    radius: window.radius,
+    toolbar: toolbar * ratio,
+  };
+  return { frame, window, ratio, scene: { width: width / ratio, height: height / ratio } };
 }
 
 function scenePoint(point, frame, viewport) {
@@ -26,44 +38,54 @@ function transformScene(context, sample) {
 }
 
 function clipFrame(context, frame) {
+  const r = frame.radius;
   context.beginPath();
-  context.roundRect(frame.x, frame.y, frame.width, frame.height, frame.radius);
+  context.roundRect(frame.x, frame.y, frame.width, frame.height, frame.toolbar ? [0, 0, r, r] : r);
   context.clip();
 }
 
 function drawPage(context, sample) {
-  const { width, height, backdrop, source, frame, camera } = sample;
+  const { width, height, backdrop, source, frame, camera, toolbar } = sample;
   context.clearRect(0, 0, width, height);
   context.save();
   transformScene(context, sample);
   context.drawImage(backdrop, 0, 0);
+  if (toolbar) drawToolbar(context, frame, toolbar);
   context.save();
   clipFrame(context, frame);
   // Cubic filtering softens even 1:1 pixels. Use it only when magnifying the source.
   context.imageSmoothingQuality = frame.width * camera.zoom > source.width * 1.02 ? 'high' : 'medium';
   context.drawImage(source, frame.x, frame.y, frame.width, frame.height);
   context.restore();
-  context.strokeStyle = '#ffffff32';
-  context.lineWidth = width / 1920;
-  context.beginPath();
-  context.roundRect(frame.x + 0.5, frame.y + 0.5, frame.width - 1, frame.height - 1, frame.radius);
-  context.stroke();
   context.restore();
 }
 
 export function drawOverlay(context, sample) {
-  const { width, frame, viewport, camera, pointer, cursor, click } = sample;
+  const { frame, viewport, pointer, cursor } = sample;
   context.save();
   transformScene(context, sample);
   clipFrame(context, frame);
-  if (click) drawClick(context, scenePoint(click, frame, viewport), cursor.clickAge, width / 1920 / camera.zoom);
-  if (pointer) drawCursor(context, scenePoint(pointer, frame, viewport), cursor);
+  drawCursor(context, scenePoint(pointer, frame, viewport), cursor);
   context.restore();
 }
 
-export function drawSample(context, sample) {
-  drawPage(context, sample);
-  drawOverlay(context, sample);
+// Output pixels the cursor samples can cover, so compositing touches only those.
+export function overlayBounds(samples) {
+  const { width, height } = samples[0];
+  const reach = samples.map(({ frame, viewport, camera, pointer, cursor }) => {
+    const point = scenePoint(pointer, frame, viewport);
+    const center = scenePoint(camera, frame, viewport);
+    const x = (point.x - center.x) * camera.zoom + width / 2;
+    const y = (point.y - center.y) * camera.zoom + height / 2;
+    const radius = 34 * cursor.size * camera.zoom + 8;
+    return { x: x - radius, y: y - radius, right: x + radius, bottom: y + radius };
+  });
+  return {
+    x: Math.max(0, Math.floor(Math.min(...reach.map(bounds => bounds.x)))),
+    y: Math.max(0, Math.floor(Math.min(...reach.map(bounds => bounds.y)))),
+    right: Math.min(width, Math.ceil(Math.max(...reach.map(bounds => bounds.right)))),
+    bottom: Math.min(height, Math.ceil(Math.max(...reach.map(bounds => bounds.bottom)))),
+  };
 }
 
 // Cache only a final-resolution page, never a smaller intermediate that zoom would enlarge.
@@ -78,7 +100,8 @@ export class SceneRenderer {
     this.cacheHits = 0;
   }
 
-  drawPage(context, sample) {
+  // Rasterizes the page once for the frame's camera; the cache survives cursor-only frames.
+  renderPage(sample) {
     const { camera, source, frame, viewport, width, height } = sample;
     const previous = this.cachedCamera;
     const panError = previous ? Math.hypot(camera.x - previous.x, camera.y - previous.y)
@@ -93,12 +116,24 @@ export class SceneRenderer {
     } else {
       this.cacheHits++;
     }
-    context.clearRect(0, 0, width, height);
-    context.drawImage(this.page, 0, 0);
   }
 
-  draw(context, sample) {
-    this.drawPage(context, sample);
-    drawOverlay(context, sample);
+  // Draws the cached page as seen from `camera`. Blur samples differ from the cached camera by
+  // a fraction of a frame of motion, so a small affine resample of the output replaces a full
+  // rasterization of the high-density capture for each of them.
+  drawPageAs(context, sample) {
+    const { camera, frame, viewport, width, height } = sample;
+    const cached = this.cachedCamera;
+    const scale = camera.zoom / cached.zoom;
+    const shift = {
+      x: (cached.x - camera.x) * frame.width / viewport.width * camera.zoom,
+      y: (cached.y - camera.y) * frame.height / viewport.height * camera.zoom,
+    };
+    context.save();
+    context.translate(width / 2 + shift.x, height / 2 + shift.y);
+    context.scale(scale, scale);
+    context.translate(-width / 2, -height / 2);
+    context.drawImage(this.page, 0, 0);
+    context.restore();
   }
 }

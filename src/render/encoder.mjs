@@ -14,9 +14,12 @@ export class VideoEncoder {
       '-video_size', `${width}x${height}`, '-framerate', String(fps), '-i', 'pipe:0',
       '-an', '-c:v', 'libx264', '-preset', quality === 'high' ? 'medium' : 'fast',
       '-crf', quality === 'high' ? '16' : '18',
-      '-vf', 'scale=in_range=full:out_range=tv:out_color_matrix=bt709',
-      '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'iec61966-2-1', '-color_range', 'tv',
-      '-pix_fmt', 'yuv420p', '-movflags', '+faststart', this.temporaryPath,
+      // The capture is sRGB: tag it 1-13-1 so QuickTime and Safari decode with the sRGB curve instead
+      // of shifting gamma as they do for BT.709 or untagged video. FFmpeg 7.1+ takes these tags from the
+      // filtered frames and ignores -color_trc/-color_primaries, so `setparams` writes them.
+      '-vf', ['scale=in_range=full:out_range=tv:out_color_matrix=bt709', 'format=yuv420p',
+        'setparams=color_primaries=bt709:color_trc=iec61966-2-1:colorspace=bt709:range=tv'].join(','),
+      '-movflags', '+faststart', this.temporaryPath,
     ], { stdio: ['pipe', 'ignore', 'pipe'] });
 
     this.process.stderr.on('data', chunk => {

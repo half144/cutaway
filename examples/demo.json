@@ -1,6 +1,5 @@
 {
   "url": "file:./demo.html",
-  "viewport": { "width": 1440, "height": 900 },
   "steps": [
     { "action": "click", "selector": "#edit", "pause": 0.45 },
     { "action": "type", "selector": "#title", "text": "Website — nova experiência", "pause": 0.4 },

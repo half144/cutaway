@@ -2,3 +2,4 @@ node_modules/
 recordings/
 .DS_Store
 *.auth.json
+assets/wallpapers/

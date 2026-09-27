@@ -1,14 +1,15 @@
 import { createCanvas, loadImage } from '@napi-rs/canvas';
-import { fileURLToPath } from 'node:url';
 
-export const backgrounds = {
-  macos: fileURLToPath(new URL('../../assets/macos-wallpaper.png', import.meta.url)),
-  dusk: ['#292d52', '#69536c', '#d69383'],
-  midnight: ['#09161e', '#203c48', '#557271'],
-  pearl: ['#d5d1cc', '#e6e2dc', '#c6cbd1'],
-};
+export { backgrounds } from './wallpapers.mjs';
 
-export async function createBackdrop(width, height, frame, preset) {
+// Ambient, key and contact shadows (1080p pixels) give the window depth without a hard edge.
+const shadows = [
+  { offset: 26, blur: 72, color: '#0000004d' },
+  { offset: 9, blur: 24, color: '#00000033' },
+  { offset: 2, blur: 5, color: '#0000002e' },
+];
+
+export async function createBackdrop(width, height, window, preset) {
   const canvas = createCanvas(width, height);
   const context = canvas.getContext('2d');
 
@@ -31,12 +32,19 @@ export async function createBackdrop(width, height, frame, preset) {
     context.fillRect(0, 0, width, height);
   }
 
-  context.shadowColor = '#07071265';
-  context.shadowBlur = 55;
-  context.shadowOffsetY = 24;
-  context.fillStyle = '#101318';
-  context.beginPath();
-  context.roundRect(frame.x, frame.y, frame.width, frame.height, frame.radius);
-  context.fill();
+  // Only the shadows are painted: the window shape sits off canvas and casts its shadow into place.
+  // A filled base would show through the page's anti-aliased edge as a thin dark outline.
+  const unit = height / 1080;
+  const away = width * 4;
+  context.fillStyle = '#000000';
+  for (const shadow of shadows) {
+    context.shadowColor = shadow.color;
+    context.shadowBlur = shadow.blur * unit;
+    context.shadowOffsetX = away;
+    context.shadowOffsetY = shadow.offset * unit;
+    context.beginPath();
+    context.roundRect(window.x - away, window.y, window.width, window.height, window.radius);
+    context.fill();
+  }
   return canvas;
 }

@@ -1,7 +1,8 @@
 export const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+export const mix = (a, b, t) => a + (b - a) * t;
 export const ease = t => t * t * t * (10 + t * (-15 + t * 6));
 
-function unitNoise(seed) {
+export function unitNoise(seed) {
   let value = seed | 0;
   value = Math.imul(value ^ value >>> 16, 0x21f0aaad);
   value = Math.imul(value ^ value >>> 15, 0x735a2d97);
@@ -31,131 +32,176 @@ export function targetPoint(box, seed = 0) {
   };
 }
 
-function visibleRegion(focus, width, height) {
-  const region = focus.framingContext ?? focus.context ?? focus;
-  const x = clamp(region.x, 0, width);
-  const y = clamp(region.y, 0, height);
-  return { x, y,
-    width: Math.max(0, clamp(region.x + region.width, 0, width) - x),
-    height: Math.max(0, clamp(region.y + region.height, 0, height) - y) };
-}
-
-function fitCenter(current, min, max) {
-  // An oversized region cannot fit the safe zone: center it instead of inverting the clamp.
-  return min > max ? (min + max) / 2 : clamp(current, min, max);
-}
-
-export function focusZoom(focus, width, height, maxZoom, safeZone) {
-  const region = visibleRegion(focus, width, height);
-  const zoomScale = Math.min(1.35, maxZoom / 1.8);
-  let preferred = 1.55 * zoomScale;
-  if (focus.action === 'type') preferred = 1.75 * zoomScale;
-  if (focus.manual) preferred = 1.45 * zoomScale;
-  return Math.max(1, Math.min(maxZoom, preferred,
-    width * safeZone / (region.width + 100),
-    height * safeZone / (region.height + 90)));
-}
+// Minimum-jerk stroke time-warped so speed peaks at ~42% of the stroke, as in aimed hand movements.
+const stroke = t => ease(clamp(t, 0, 1) ** 0.82);
 
 export function pointerPath(from, to, duration, options = {}) {
-  const settings = typeof options === 'number' ? { fps: options } : options;
-  const { fps = 60, seed = 0, targetWidth = 40 } = settings;
+  const { fps = 60, seed = 0, targetWidth = 40 } = options;
   const count = Math.max(2, Math.ceil(duration * fps));
   const dx = to.x - from.x;
   const dy = to.y - from.y;
   const length = Math.hypot(dx, dy) || 1;
   const ux = dx / length;
   const uy = dy / length;
-  const nx = -uy;
-  const ny = ux;
   const base = motionSeed(from, to, seed);
-  const side = unitNoise(base + 1) < 0.5 ? -1 : 1;
-  const bend = side * Math.min(72, length * (0.055 + unitNoise(base + 2) * 0.035));
-  const first = 0.24 + unitNoise(base + 3) * 0.08;
-  const second = 0.68 + unitNoise(base + 4) * 0.09;
-  const secondBend = bend * (0.28 + unitNoise(base + 5) * 0.32);
-  const firstControl = {
-    x: from.x + dx * first + nx * bend,
-    y: from.y + dy * first + ny * bend,
-  };
-  const secondControl = {
-    x: from.x + dx * second + nx * secondBend,
-    y: from.y + dy * second + ny * secondBend,
-  };
-  const correction = length > 180 ? Math.min(7, targetWidth * 0.12, length * 0.012) : 0;
-  const correctionSide = (unitNoise(base + 6) * 2 - 1) * (0.4 + unitNoise(base + 7) * 0.25);
-  const settleStart = 0.76 + unitNoise(base + 8) * 0.04;
+  // Wrist and elbow rotation bow strokes consistently: horizontal ones upward, vertical ones outward.
+  let nx = -uy;
+  let ny = ux;
+  const horizontal = Math.abs(ux) >= Math.abs(uy);
+  if (horizontal ? ny > 0 : nx < 0) {
+    nx = -nx;
+    ny = -ny;
+  }
+  // A visible arc, 4–7% of the distance at its widest (~0.56 of the control offset), like a hand
+  // pivoting at the wrist; a near-straight line reads as a machine.
+  const bend = Math.min(90 + 30 * unitNoise(base + 6), length * (0.075 + 0.045 * unitNoise(base + 2))) * (horizontal ? 1 : 0.7);
+  const first = 0.26 + 0.08 * unitNoise(base + 4);
+  const second = 0.68 + 0.08 * unitNoise(base + 5);
+  const firstControl = { x: from.x + dx * first + nx * bend, y: from.y + dy * first + ny * bend };
+  const secondControl = { x: from.x + dx * second + nx * bend * 0.45, y: from.y + dy * second + ny * bend * 0.45 };
+
+  // A long stroke to a small target lands a little short and a brief overlapping correction (≤ 120 ms)
+  // finishes along the same arc. Larger targets are hit in one stroke: a slow creep reads as sluggish.
+  const correction = Math.min(0.12, duration * 0.2) / duration;
+  const undershoot = length > 220 && targetWidth < 24 ? Math.min(20, length * 0.035) * (0.7 + unitNoise(base + 3) * 0.6) / length : 0;
+  const primaryEnd = undershoot ? 1 - correction * 0.6 : 1;
+  const correctionStart = 1 - correction;
+  const progress = t => (1 - undershoot) * stroke(t / primaryEnd)
+    + undershoot * ease(clamp((t - correctionStart) / (1 - correctionStart), 0, 1));
 
   return Array.from({ length: count + 1 }, (_, i) => {
     if (i === 0) return { t: 0, ...from };
     if (i === count) return { t: duration, ...to };
     const t = i / count;
-    const progress = ease(t);
-    const settle = clamp((t - settleStart) / (1 - settleStart), 0, 1);
-    const settlePulse = Math.sin(Math.PI * settle) ** 2 * correction;
+    const s = progress(t);
     return {
       t: duration * t,
-      x: cubic(from.x, firstControl.x, secondControl.x, to.x, progress)
-        + nx * settlePulse * correctionSide,
-      y: cubic(from.y, firstControl.y, secondControl.y, to.y, progress)
-        + ny * settlePulse * correctionSide,
+      x: cubic(from.x, firstControl.x, secondControl.x, to.x, s),
+      y: cubic(from.y, firstControl.y, secondControl.y, to.y, s),
     };
   });
 }
 
 // Exact critically damped spring: stable even when the output frame rate changes.
-function spring(value, velocity, target, dt, omega = 10) {
+function spring(value, velocity, target, dt, omega) {
   const offset = value - target;
   const impulse = velocity + omega * offset;
   const decay = Math.exp(-omega * dt);
   return [target + (offset + impulse * dt) * decay, (velocity - omega * impulse * dt) * decay];
 }
 
+// Screen Studio's zoom leaves promptly, is mostly done by ~0.6 s and fades out by ~1.2 s.
+// A fast first stage rounds off the onset so the move never starts with a single-frame kick.
+const cameraOmegas = [30, 7.2];
+// Like Screen Studio, the camera may reveal wallpaper near an edge, but only about this share of the view.
+const maxBleed = 0.1;
+// A close-up keeps its subject, plus this margin in page pixels, within the middle of the frame.
+export const safeZone = 0.7;
+export const framingMargin = { x: 32, y: 24 };
+
+function fitCenter(current, min, max) {
+  // An oversized region cannot fit the safe zone: center it instead of inverting the clamp.
+  return min > max ? (min + max) / 2 : clamp(current, min, max);
+}
+
 export class Camera {
-  constructor(width, height, { maxZoom = 1.8, safeZone = 0.65 } = {}) {
+  // Coordinates are page pixels. `top` extends the window above the page (browser toolbar);
+  // `sceneWidth`/`sceneHeight` are the full output measured in page pixels at zoom 1.
+  constructor(width, height, { top = 0, sceneWidth = width, sceneHeight = height - top } = {}) {
     this.width = width;
     this.height = height;
-    this.maxZoom = maxZoom;
-    this.safeZone = safeZone;
-    this.x = this.targetX = width / 2;
-    this.y = this.targetY = height / 2;
+    this.top = top;
+    this.sceneWidth = sceneWidth;
+    this.sceneHeight = sceneHeight;
+    this.centerX = width / 2;
+    this.centerY = (top + height) / 2;
+    this.padX = Math.max(0, (sceneWidth - width) / 2);
+    this.padY = Math.max(0, (sceneHeight - height + top) / 2);
+    // Never below the overview padding, so travel opens as soon as the zoom starts.
+    this.bleedX = Math.max(maxBleed, this.padX / sceneWidth) * sceneWidth;
+    this.bleedY = Math.max(maxBleed, this.padY / sceneHeight) * sceneHeight;
+    this.x = this.targetX = this.centerX;
+    this.y = this.targetY = this.centerY;
     this.zoom = 1;
-    this.vx = this.vy = this.vz = 0;
     this.panX = this.panY = 0;
+    this.stages = cameraOmegas.map(() => ({ zoom: 0, panX: 0, panY: 0, vz: 0, vx: 0, vy: 0 }));
+    this.shot = null;
   }
 
-  update(focus, pointer, dt) {
+  rangeX(zoom) {
+    const bleed = Math.min(this.padX, this.bleedX / zoom);
+    return Math.max(0, this.width / 2 + bleed - this.sceneWidth / (2 * zoom));
+  }
+
+  rangeY(zoom) {
+    const bleed = Math.min(this.padY, this.bleedY / zoom);
+    return Math.max(0, (this.height - this.top) / 2 + bleed - this.sceneHeight / (2 * zoom));
+  }
+
+  // `response` scales the main spring: quicker when the next change is imminent, calmer before a long
+  // hold, so camera moves don't all share one duration (Screenize ties response to time-to-next-action).
+  update(focus, pointer, dt, response = 1) {
     let targetZoom = 1;
     if (focus) {
-      targetZoom = focus.plannedZoom ?? focusZoom(focus, this.width, this.height, this.maxZoom, this.safeZone);
-      const region = visibleRegion(focus, this.width, this.height);
-      const halfX = this.width * this.safeZone / (2 * targetZoom);
-      const halfY = this.height * this.safeZone / (2 * targetZoom);
-      // Move only as far as needed to keep the interaction inside the safe region.
-      this.targetX = fitCenter(this.targetX, region.x + region.width + 35 - halfX, region.x - 35 + halfX);
-      this.targetY = fitCenter(this.targetY, region.y + region.height + 30 - halfY, region.y - 30 + halfY);
+      targetZoom = focus.plannedZoom;
+      const region = {
+        x: clamp(focus.x, 0, this.width),
+        y: clamp(focus.y, 0, this.height),
+      };
+      region.width = clamp(focus.x + focus.width, 0, this.width) - region.x;
+      region.height = clamp(focus.y + focus.height, 0, this.height) - region.y;
+      if (focus.shot !== this.shot) {
+        // A new shot frames its subject centrally; within a shot the camera moves only as needed.
+        this.targetX = region.x + region.width / 2;
+        this.targetY = region.y + region.height / 2;
+      }
+      const halfX = this.sceneWidth * safeZone / (2 * targetZoom);
+      const halfY = this.sceneHeight * safeZone / (2 * targetZoom);
+      const { x: marginX, y: marginY } = framingMargin;
+      this.targetX = fitCenter(this.targetX, region.x + region.width + marginX - halfX, region.x - marginX + halfX);
+      this.targetY = fitCenter(this.targetY, region.y + region.height + marginY - halfY, region.y - marginY + halfY);
       if (pointer) {
-        const px = this.width * 0.84 / (2 * targetZoom);
-        const py = this.height * 0.84 / (2 * targetZoom);
+        // Follow the pointer like Screen Studio: it may roam the middle 60% before the camera moves along.
+        const px = this.sceneWidth * 0.6 / (2 * targetZoom);
+        const py = this.sceneHeight * 0.6 / (2 * targetZoom);
         this.targetX = clamp(this.targetX, pointer.x - px, pointer.x + px);
         this.targetY = clamp(this.targetY, pointer.y - py, pointer.y + py);
       }
-    } else {
-      this.targetX = this.width / 2;
-      this.targetY = this.height / 2;
     }
-    const targetRangeX = this.width * (1 - 1 / targetZoom) / 2;
-    const targetRangeY = this.height * (1 - 1 / targetZoom) / 2;
-    this.targetX = clamp(this.targetX, this.width / 2 - targetRangeX, this.width / 2 + targetRangeX);
-    this.targetY = clamp(this.targetY, this.height / 2 - targetRangeY, this.height / 2 + targetRangeY);
-    const targetPanX = targetRangeX > 0 ? (this.targetX - this.width / 2) / targetRangeX : 0;
-    const targetPanY = targetRangeY > 0 ? (this.targetY - this.height / 2) / targetRangeY : 0;
+    this.shot = focus?.shot ?? null;
 
-    // Animate within the available travel range. No post-spring position clamp can snap the camera.
-    [this.zoom, this.vz] = spring(this.zoom, this.vz, targetZoom, dt, 5.8);
-    [this.panX, this.vx] = spring(this.panX, this.vx, targetPanX, dt, 5.8);
-    [this.panY, this.vy] = spring(this.panY, this.vy, targetPanY, dt, 5.8);
-    this.x = this.width / 2 + this.panX * this.width * (1 - 1 / this.zoom) / 2;
-    this.y = this.height / 2 + this.panY * this.height * (1 - 1 / this.zoom) / 2;
+    // Panning is expressed as a fraction of the travel available at the current zoom,
+    // so zooming out can never drag the view outside its bounds or require a snapping clamp.
+    const target = { zoom: Math.log(targetZoom), panX: this.panX, panY: this.panY };
+    if (focus) {
+      const rangeX = this.rangeX(targetZoom);
+      const rangeY = this.rangeY(targetZoom);
+      target.panX = rangeX > 0 ? clamp((this.targetX - this.centerX) / rangeX, -1, 1) : 0;
+      target.panY = rangeY > 0 ? clamp((this.targetY - this.centerY) / rangeY, -1, 1) : 0;
+      if (this.zoom < 1.0005) {
+        // Travel is zero at 1×: aim first so the zoom grows straight into its subject.
+        for (const stage of this.stages) Object.assign(stage, { panX: target.panX, panY: target.panY, vx: 0, vy: 0 });
+      }
+    }
+    // Without a focus the last framing is held, so zooming out recedes from the same point.
+    this.panX = target.panX;
+    this.panY = target.panY;
+    // Fixed substeps keep the cascade identical at 24, 30 or 60 fps exports.
+    const substeps = Math.max(1, Math.round(dt * 240));
+    for (let i = 0; i < substeps; i++) {
+      let goal = target;
+      this.stages.forEach((stage, index) => {
+        const omega = cameraOmegas[index] * (index === cameraOmegas.length - 1 ? response : 1);
+        [stage.zoom, stage.vz] = spring(stage.zoom, stage.vz, goal.zoom, dt / substeps, omega);
+        [stage.panX, stage.vx] = spring(stage.panX, stage.vx, goal.panX, dt / substeps, omega);
+        [stage.panY, stage.vy] = spring(stage.panY, stage.vy, goal.panY, dt / substeps, omega);
+        goal = stage;
+      });
+    }
+    const final = this.stages.at(-1);
+    this.zoom = Math.exp(final.zoom);
+    this.x = this.centerX + final.panX * this.rangeX(this.zoom);
+    this.y = this.centerY + final.panY * this.rangeY(this.zoom);
     return { x: this.x, y: this.y, zoom: this.zoom };
   }
 }

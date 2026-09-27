@@ -4,7 +4,18 @@ import { setTimeout as sleep } from 'node:timers/promises';
 import { chromium } from 'playwright';
 import { loadPlan } from '../plan.mjs';
 import { ActionRunner } from './actions.mjs';
+import { isQuietSpot, waitForSettled, watchChanges } from './page-state.mjs';
 import { ScreencastRecorder } from './screencast.mjs';
+
+// Where the pointer waits before the first gesture: a spot that reacts to nothing on hover.
+async function restingPoint(page, viewport) {
+  const candidates = [[0.5, 0.56], [0.62, 0.7], [0.38, 0.7], [0.72, 0.42], [0.28, 0.42], [0.5, 0.86], [0.48, 0.72]];
+  const points = candidates.map(([x, y]) => ({ x: viewport.width * x, y: viewport.height * y }));
+  for (const point of points) {
+    if (await page.evaluate(isQuietSpot, point)) return point;
+  }
+  return points.at(-1);
+}
 
 function createTimeline(viewport) {
   return {
@@ -17,6 +28,7 @@ function createTimeline(viewport) {
     steps: [],
     scrolls: [],
     cursors: [],
+    keys: [],
     duration: 0,
     status: 'recording',
   };
@@ -32,6 +44,11 @@ export async function record(planPath, directory, { headed = false, storageState
   const browser = await chromium.launch({ headless: !headed, args: [`--force-device-scale-factor=${plan.captureScale}`] });
   const timeline = createTimeline(plan.viewport);
   timeline.capture = { scale: plan.captureScale, format: 'png' };
+  // The toolbar shows the page address; query strings and fragments may hold secrets.
+  const address = new URL(plan.url);
+  address.search = '';
+  address.hash = '';
+  timeline.url = address.href;
   let capture;
   let popupError;
   let startedAt;
@@ -55,9 +72,11 @@ export async function record(planPath, directory, { headed = false, storageState
 
     await page.goto(plan.url, { waitUntil: 'load' });
     await page.evaluate(() => document.fonts.ready);
-    await sleep(350);
+    // Open on a still page: entrance animations and late layout finish before the first frame.
+    await page.evaluate(watchChanges);
+    await page.evaluate(waitForSettled, { limit: 3000, quiet: 400 });
 
-    const initialPointer = { x: plan.viewport.width * 0.48, y: plan.viewport.height * 0.72 };
+    const initialPointer = await restingPoint(page, plan.viewport);
     await page.mouse.move(initialPointer.x, initialPointer.y);
     const session = await context.newCDPSession(page);
     startedAt = Date.now();
@@ -72,7 +91,8 @@ export async function record(planPath, directory, { headed = false, storageState
       height: Math.round(plan.viewport.height * plan.captureScale),
     }, startedAt);
     await capture.start();
-    await sleep(650);
+    // A calm opening beat before the first gesture.
+    await sleep(600);
 
     const actions = new ActionRunner(page, timeline, now, initialPointer);
     for (const [index, step] of plan.steps.entries()) {

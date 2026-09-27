@@ -10,7 +10,8 @@ export function validatePlan(plan) {
     throw new Error('url must start with http:, https: or file:.');
   }
   if (!Array.isArray(plan.steps) || !plan.steps.length) throw new Error('steps must be a non-empty array.');
-  const viewport = plan.viewport ?? { width: 1440, height: 900 };
+  // 16:9 matches the default export, so the window sits with even margins instead of pillarboxed.
+  const viewport = plan.viewport ?? { width: 1440, height: 810 };
   for (const key of ['width', 'height']) {
     if (!Number.isInteger(viewport[key]) || viewport[key] < 320 || viewport[key] > 3840) {
       throw new Error(`viewport.${key} must be an integer from 320 to 3840.`);

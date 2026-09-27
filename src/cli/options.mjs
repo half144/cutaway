@@ -7,8 +7,10 @@ export const help = `agent-screen — cinematic browser recordings for agents
   agent-screen record <plan.json> --out <new-directory> [--headed] [--capture-only]
   agent-screen render <recording-directory> [--output <video.mp4>]
 
-Rendering: --width 1920 --height 1080 --fps 60 --zoom 1.8 --blur 0.65
-           --cursor-size 1.45 --padding 0.09 --preset macos|dusk|midnight|pearl
+Rendering: --width 1920 --height 1080 --fps 60 --zoom 1.8 --blur 0.75
+           --cursor-size 2 --padding 0.09 --preset macos|dusk|midnight|pearl|<wallpaper>
+           (npm run wallpapers imports this Mac's wallpapers as presets)
+           --window browser|none --keys combos|all|none
            --pacing balanced|original --quality high|standard
 Capture:   --storage-state <auth.json> (existing Playwright storage state)
 
@@ -45,6 +47,8 @@ export function parseCliArgs(args = process.argv.slice(2)) {
       preset: { type: 'string' },
       pacing: { type: 'string' },
       quality: { type: 'string' },
+      window: { type: 'string' },
+      keys: { type: 'string' },
       help: { type: 'boolean', short: 'h' },
     },
   });
@@ -63,6 +67,8 @@ export function parseCliArgs(args = process.argv.slice(2)) {
   if (values.preset) renderOptions.preset = values.preset;
   if (values.pacing) renderOptions.pacing = values.pacing;
   if (values.quality) renderOptions.quality = values.quality;
+  if (values.window) renderOptions.window = values.window;
+  if (values.keys) renderOptions.keys = values.keys;
   if (values.output) renderOptions.output = values.output;
 
   return { command, input, values, renderOptions, showHelp: false };

@@ -12,6 +12,19 @@ test('stationary targets do not replay a pointer animation', async () => {
   assert.deepEqual(timeline.points, []);
 });
 
+test('a key pressed into a field attaches its expected result to that field', async () => {
+  const box = { x: 900, y: 20, width: 300, height: 50 };
+  const result = { waitFor: async () => {}, evaluate: async () => ({ box, words: 3 }) };
+  const page = { locator: () => ({ first: () => result }), keyboard: { press: async () => {} } };
+  const field = { action: 'type', t: 1, x: 100, y: 300, width: 200, height: 40 };
+  const timeline = { focuses: [field], keys: [] };
+  const runner = new ActionRunner(page, timeline, () => 4, { x: 0, y: 0 });
+  runner.previousFocus = field;
+  await runner.run({ action: 'press', key: 'Enter', expect: '#toast', pause: 0 }, 1);
+  assert.deepEqual(field.result, { t: 4, ...box });
+  assert.deepEqual(timeline.keys, [{ t: 4, key: 'Enter' }]);
+});
+
 test('manual focus accepts visible non-clickable elements and holds through expectations', async () => {
   let time = 1;
   const box = { x: 50, y: 50, width: 100, height: 40 };
@@ -20,8 +33,8 @@ test('manual focus accepts visible non-clickable elements and holds through expe
     evaluate: async () => null, boundingBox: async () => box,
     click: async () => { throw new Error('Disabled element cannot be clicked'); },
   };
-  const page = { locator: selector => selector === '#result'
-    ? { waitFor: async () => { time = 8; } } : locator };
+  const result = { waitFor: async () => { time = 8; }, evaluate: async () => ({ box, words: 2 }) };
+  const page = { locator: selector => selector === '#result' ? { first: () => result } : locator };
   const timeline = { focuses: [] };
   const runner = new ActionRunner(page, timeline, () => time, { x: 0, y: 0 });
   await runner.run({ action: 'focus', selector: '#disabled', expect: '#result', duration: 0, pause: 0 }, 0);

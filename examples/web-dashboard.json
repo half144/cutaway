@@ -1,0 +1,18 @@
+{
+  "url": "https://ui.shadcn.com/view/new-york-v4/dashboard-01",
+  "timeout": 15000,
+  "steps": [
+    { "action": "click", "selector": "role=radio[name=\"Last 30 days\"]" },
+    { "action": "click", "selector": "role=radio[name=\"Last 7 days\"]" },
+    { "action": "click", "selector": "role=checkbox[name=\"Select row\"] >> nth=0" },
+    { "action": "type", "selector": "[id=\"1-target\"]", "text": "24" },
+    { "action": "press", "key": "Enter", "expect": "[data-sonner-toast]" },
+    { "action": "click", "selector": "role=button[name=\"Cover page\"]", "expect": "role=dialog" },
+    { "action": "type", "selector": "#header", "text": "Cover page (final)" },
+    { "action": "type", "selector": "#limit", "text": "8" },
+    { "action": "click", "selector": "role=button[name=\"Done\"]" },
+    { "action": "click", "selector": "role=button[name=\"Customize Columns\"]" },
+    { "action": "click", "selector": "role=menuitemcheckbox[name=\"reviewer\"]" },
+    { "action": "press", "key": "Escape" }
+  ]
+}
