@@ -3,7 +3,8 @@
 #
 #   curl -fsSL https://raw.githubusercontent.com/half144/cutaway/master/install.sh | bash
 #
-# Running it again updates the install. CUTAWAY_HOME changes where it lives (default ~/.cutaway).
+# The install updates itself once a day when the skill runs (CUTAWAY_NO_UPDATE=1 turns that off), and
+# running this again updates it on the spot. CUTAWAY_HOME changes where it lives (default ~/.cutaway).
 set -euo pipefail
 
 repo="https://github.com/half144/cutaway.git"
@@ -19,8 +20,11 @@ node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 22 ? 0 : 1)
   || fail "Node.js 22 or newer is required; found $(node -v)."
 
 if [ -d "$dir/.git" ]; then
-  say "Updating $dir"
-  git -C "$dir" pull --ff-only --quiet
+  before="$(git -C "$dir" rev-parse --short HEAD)"
+  git -C "$dir" pull --ff-only --quiet \
+    || fail "Could not update $dir (local edits?). Check it with: git -C $dir status"
+  after="$(git -C "$dir" rev-parse --short HEAD)"
+  if [ "$before" = "$after" ]; then say "Already up to date ($after)"; else say "Updated $before → $after"; fi
 else
   say "Downloading Cutaway into $dir"
   git clone --quiet --depth 1 "$repo" "$dir"
@@ -28,6 +32,8 @@ fi
 
 say "Installing dependencies and Chromium"
 (cd "$dir" && npm ci --silent --no-audit --no-fund && npx --yes playwright install chromium >/dev/null)
+# Marks this checkout as managed, so the skill keeps it up to date; development clones don't have it.
+node -e 'process.stdout.write(String(Date.now()))' > "$dir/.git/cutaway-auto-update"
 
 # The skill runs the CLI through its link, so it must stay a link to this checkout. A link or folder that
 # points somewhere else (a development clone) is left alone.

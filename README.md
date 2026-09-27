@@ -54,7 +54,9 @@ Requires **Node.js 22+** and **FFmpeg** (`brew install ffmpeg` on macOS).
 curl -fsSL https://raw.githubusercontent.com/half144/cutaway/master/install.sh | bash
 ```
 
-The installer downloads Cutaway into `~/.cutaway`, installs its dependencies and Chromium, and links the skill into Claude Code (`~/.claude/skills`) and Codex (`~/.codex/skills`) when they are installed. Run it again to update. `CUTAWAY_HOME` changes the folder; a skill link that already points elsewhere is left alone.
+The installer downloads Cutaway into `~/.cutaway`, installs its dependencies and Chromium, and links the skill into Claude Code (`~/.claude/skills`) and Codex (`~/.codex/skills`) when they are installed. `CUTAWAY_HOME` changes the folder; a skill link that already points elsewhere is left alone.
+
+**Updates are automatic.** Once a day, when the skill runs, the install fast-forwards to the latest `master` before anything loads, and reinstalls dependencies when they changed. Offline or with local edits it keeps the installed version. `CUTAWAY_NO_UPDATE=1` turns it off, and running the installer again updates on the spot. Clones made by hand never update themselves.
 
 Then ask your agent for a recording (`/cutaway record the checkout flow` in Claude Code, `$cutaway` in Codex), or run the demo yourself:
 
