@@ -87,7 +87,7 @@ node src/cli.mjs render recordings/delivery --preset midnight --zoom 2 --window 
 | `--window` | browser | browser (bar with traffic lights and address), none |
 | `--keys` | combos | combos (shortcuts and named keys such as Esc, Enter, Tab), all, none |
 | `--pacing` | balanced | balanced (speeds up dead time), original |
-| `--quality` | high | high (CRF 16), standard (CRF 18) |
+| `--quality` | high | high (x264 medium, CRF 16), standard (x264 veryfast, CRF 16: same fidelity as the old CRF 18, half the encoding time) |
 | `--output` | `<recording>/video.mp4` | Alternative output path |
 
 Zoom is for local detail. A click whose effect fills the screen (the chart redraws, a panel opens, a column disappears) happens in the overview, without pushing in on the control only to pull out right after. Typing, menus and small effects get a close-up. Local actions close in time (up to 3 s apart) form a single shot at a constant zoom level. The camera moves with the hand: zooms and pans start when the cursor sets off toward the target, and the cursor can roam the central 60% of the frame before the camera follows it. So the cursor is never dragged across the screen after it stops, and a zoom-out that would end just before the cursor leaves happens together with its departure. Zoom holds for 1.8 s after the last click or 1.2 s after typing. Shots less than 1.5 s apart connect with a pan instead of returning to the overview; between close-ups up to 2.5 s apart on nearby subjects, the camera pulls back only halfway and returns, instead of going to the overview; shots that would be too short are dropped instead of flashing. A manual scroll ends the shot; the auto-scroll to the next target doesn't. A `focus` too large to magnify and a large result (dialog, new page) hold the overview between shots. The video always opens on the whole page: a `focus` before the first gesture doesn't zoom, and the first push-in happens with the first mouse movement. If the next shot frames the revealed result itself (for example, a `focus` on it up to 3.5 s later), the camera goes straight from the close-up to it without passing through the overview. When a shot's whole region fits in the frame, the framing stays still; otherwise the camera follows each target. In wide fields it frames the start of the text and follows the caret. The default level is 1.5×, reduced only when the region doesn't fit with a margin; a nearby, compact container is included when available.
@@ -121,7 +121,7 @@ More backgrounds: `npm run wallpapers` converts the macOS wallpapers installed o
 - `video.mp4`: the composited video.
 - `poster.png`: a frame from the middle of the export for quick inspection.
 - `camera.json`: the camera path, for diagnostics.
-- `render.json`: parameters and real measurements of export time and sampled Node process memory. `motion` summarizes movement for objective tuning: shots, share of the video spent zoomed, shortest close-up, shortest return to the overview (low values signal "pumping"), skipped focuses and capture fps during scroll.
+- `render.json`: parameters and real measurements of export time, the number of render processes and their sampled memory, summed. `motion` summarizes movement for objective tuning: shots, share of the video spent zoomed, shortest close-up, shortest return to the overview (low values signal "pumping"), skipped focuses and capture fps during scroll.
 
 The video file is replaced only after a successful export. Re-rendering may change the session's video and diagnostic files. The script contains the typed text; the manifest doesn't duplicate it, but the frames naturally show the page's visible content.
 
@@ -146,7 +146,10 @@ src/
 │   ├── page-state.mjs      DOM inspection, auto-scroll and caret position
 │   └── screencast.mjs      captures, checks resolution and persists CDP frames
 ├── render/
-│   ├── index.mjs           orchestrates the frame-by-frame export
+│   ├── index.mjs           plans the export, renders segments in parallel and joins them
+│   ├── segments.mjs        splits the frames into runs of about equal work
+│   ├── worker.mjs          process that renders one segment
+│   ├── compose.mjs         composes and encodes a run of frames
 │   ├── background.mjs      wallpaper, gradients and window shadow
 │   ├── wallpapers.mjs      background presets and the default
 │   ├── toolbar.mjs         browser bar: tone and drawing
@@ -159,7 +162,7 @@ src/
 │   ├── metrics.mjs         motion metrics for `render.json`
 │   ├── pacing.mjs          time compression of waits with smooth ramps
 │   ├── stillness.mjs       detects frames with no visible change
-│   ├── encoder.mjs         FFmpeg process and lifecycle
+│   ├── encoder.mjs         FFmpeg encoding and segment joining
 │   └── settings.mjs        render defaults and validation
 ├── motion.mjs              camera, easing and cursor path
 └── plan.mjs                script validation
@@ -172,7 +175,7 @@ src/
 - [@napi-rs/canvas](https://github.com/Brooooooklyn/canvas): native composition with Skia.
 - [FFmpeg](https://ffmpeg.org/): H.264 encoding and MP4 muxing.
 
-Capture and rendering are sequential and independent. The renderer keeps only the current source frame and composition buffers, applies adaptive sampling and respects the encoder's throughput. Camera metadata is proportional to duration; the source frames stay on disk. The reported memory doesn't include the Chromium or FFmpeg processes.
+Capture and rendering are sequential and independent. Camera and cursor are simulated once for the whole video, so every output frame depends only on its own state and the camera of the frame before. The export splits the frames into contiguous segments of about equal work (a moving camera costs a page raster and its blur samples) and renders them in parallel processes, up to half the CPU cores and one per 2 GB of memory, each with its own encoder; FFmpeg then joins the segments without re-encoding. A lossless test render produced the same 1,574 frames, bit for bit, in one process and in five. Each process keeps only the current source frame and composition buffers (~0.3 GB at 1080p), applies adaptive sampling and respects its encoder's throughput. Camera metadata is proportional to duration; the source frames stay on disk. The reported memory doesn't include the Chromium or FFmpeg processes. Run one export at a time: a second one competes for the same cores.
 
 References studied: [Screen Studio — animations](https://screen.studio/guide/animations), [cursor](https://screen.studio/guide/cursor), [auto zoom](https://screen.studio/guide/auto-zoom), [Recordly](https://github.com/webadderallorg/Recordly) and [OpenScreen](https://github.com/siddharthvaddem/openscreen). The last two are full editing applications; none of their code or assets was incorporated. The implementation uses the libraries listed above and keeps the script and framing logic in this project.
 
@@ -183,7 +186,7 @@ References studied: [Screen Studio — animations](https://screen.studio/guide/a
 - No audio, webcam, native windows, popups, drag-and-drop or visual timeline editing.
 - Page scrolling is captured as it happens; the temporal blur covers camera and cursor and doesn't synthesize in-between interface frames.
 - Changing the output aspect ratio keeps the capture's aspect ratio and adds margin; there is no automatic reframing for vertical social formats yet.
-- Uses Skia and libx264 on the CPU. GPU acceleration and a hardware encoder still need implementation and benchmarking.
+- Uses Skia and libx264 on the CPU, in parallel processes. On an Apple M4 a 26 s demo exports in ~46 s at the default 1080p60 `high`, and in ~17 s at 1280×720 with `--quality standard` (previously ~140 s). GPU composition and a hardware encoder still need implementation and benchmarking.
 - New captures record arrow, hand and I-beam from the DOM. Custom canvas/iframe cursors aren't captured; older sessions use the arrow.
 
 ## Verification
@@ -197,7 +200,7 @@ The tests cover camera geometry and stability, cursor path and interpolation, an
 
 ## Fast path for agents
 
-The skill reuses the URL, selectors and state already known from the task. Preparation should investigate only what the script is missing; it doesn't require auditing the project, reinstalling, a full rehearsal or a preview export. The `record` command already checks dependencies before the actions and delivers the MP4 in a single run. The default remains 1080p/60 fps.
+The skill reuses the URL, selectors and state already known from the task. Preparation should investigate only what the script is missing; it doesn't require auditing the project, reinstalling, a full rehearsal or a preview export. The `record` command already checks dependencies before the actions and delivers the MP4 in a single run. The default remains 1080p/60 fps for showcase videos. For PR evidence, bug repros and previews, `--width 1280 --height 720 --quality standard` exports about 3× faster and keeps ~30 s of video under GitHub's 10 MB attachment limit on free plans.
 
 ```sh
 # Optional diagnosis: reports the tool's repository and needed fixes
@@ -228,7 +231,7 @@ Use a new folder when repeating. The deliberate loads let you evaluate the zoom 
 
 ## Current quality (2026-09-15)
 
-The `high` default uses a 2× PNG source, direct composition, up to 16 temporal samples and H.264 CRF 16. Conversion uses the BT.709 matrix with sRGB transfer tagged in the file. The encoder alternatives measured are in [docs/motion-review.md](docs/motion-review.md). `standard` uses CRF 18 and up to five samples, preserving the captured source. The render reports the source resolution and pixel headroom at the highest zoom; values below 1 mean existing pixels are being magnified.
+The `high` default uses a 2× PNG source, direct composition, up to 16 temporal samples and H.264 CRF 16. Conversion uses the BT.709 matrix with sRGB transfer tagged in the file. The encoder alternatives measured are in [docs/motion-review.md](docs/motion-review.md). `standard` uses x264 `veryfast` at CRF 16 and up to five samples, preserving the captured source. Measured against a lossless master of the same render, it matches the fidelity of the previous `fast`/CRF 18 (PSNR 48.4 vs 48.8 dB) with 45% less encoding CPU; `high` stays at 50.6 dB. The render reports the source resolution and pixel headroom at the highest zoom; values below 1 mean existing pixels are being magnified.
 
 Compact groups share scale and framing region. Scrolls end old focuses and the camera opens before scrolling; the next push-in waits for the target to be available. Scrolling schedules events in real time and drops delays, keeping the requested duration. Typing varies at word and punctuation boundaries.
 

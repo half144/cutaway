@@ -1,4 +1,5 @@
 import { createCanvas, loadImage } from '@napi-rs/canvas';
+import { readFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 
 // Measured in page pixels, like the captured viewport.
@@ -7,7 +8,7 @@ const uiFont = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
 // Toolbar tone follows the top of the page so the window reads as one piece.
 export async function toolbarStyle(timeline, directory) {
-  const first = await loadImage(join(directory, timeline.frames[0].file));
+  const first = await loadImage(await readFile(join(directory, timeline.frames[0].file)));
   const probe = createCanvas(16, 1);
   const context = probe.getContext('2d');
   context.drawImage(first, 0, 0, first.width, Math.max(1, first.height / 100), 0, 0, 16, 1);

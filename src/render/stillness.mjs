@@ -1,4 +1,5 @@
 import { createCanvas, loadImage } from '@napi-rs/canvas';
+import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { quietSpans } from './pacing.mjs';
 
@@ -15,7 +16,7 @@ export async function stillFrames(timeline, directory) {
   const context = canvas.getContext('2d');
   context.imageSmoothingQuality = 'high';
   async function thumbnail(index) {
-    context.drawImage(await loadImage(join(directory, timeline.frames[index].file)), 0, 0, probe.width, probe.height);
+    context.drawImage(await loadImage(await readFile(join(directory, timeline.frames[index].file))), 0, 0, probe.width, probe.height);
     const rgba = context.getImageData(0, 0, probe.width, probe.height).data;
     const gray = new Float32Array(probe.width * probe.height);
     for (let i = 0; i < gray.length; i++) gray[i] = 0.2126 * rgba[i * 4] + 0.7152 * rgba[i * 4 + 1] + 0.0722 * rgba[i * 4 + 2];

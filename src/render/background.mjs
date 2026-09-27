@@ -1,4 +1,5 @@
 import { createCanvas, loadImage } from '@napi-rs/canvas';
+import { readFile } from 'node:fs/promises';
 
 export { backgrounds } from './wallpapers.mjs';
 
@@ -14,7 +15,7 @@ export async function createBackdrop(width, height, window, preset) {
   const context = canvas.getContext('2d');
 
   if (typeof preset === 'string') {
-    const wallpaper = await loadImage(preset);
+    const wallpaper = await loadImage(await readFile(preset));
     const scale = Math.max(width / wallpaper.width, height / wallpaper.height);
     const scaledWidth = wallpaper.width * scale;
     const scaledHeight = wallpaper.height * scale;

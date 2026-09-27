@@ -20,7 +20,7 @@ Use `scripts/run.mjs` next to this skill, with its absolute path. It resolves th
 node <skill-directory>/scripts/run.mjs record /absolute/plan.json --out /absolute/new-recording
 ```
 
-Default output is **1920×1080 at 60 fps**: the Sonoma Horizon wallpaper (after `npm run wallpapers`; the bundled macOS wallpaper otherwise), a browser window with traffic lights and address bar, Screen Studio-style zoom shots at 1.5×, a human-paced cursor and temporal motion blur. New captures use lossless PNG at 2× physical resolution and high-quality H.264 export (`--quality high`, CRF 16). Keep this quality for normal delivery. If the user requests a quick preview, add `--width 1280 --height 720`; do not silently reduce quality to make a final export faster.
+Default output is **1920×1080 at 60 fps**: the Sonoma Horizon wallpaper (after `npm run wallpapers`; the bundled macOS wallpaper otherwise), a browser window with traffic lights and address bar, Screen Studio-style zoom shots at 1.5×, a human-paced cursor and temporal motion blur. New captures use lossless PNG at 2× physical resolution and high-quality H.264 export (`--quality high`, CRF 16). Keep this quality for showcase videos. For PR evidence, bug repros and quick previews, add `--width 1280 --height 720 --quality standard`: it stays legible in GitHub's player, exports about 3× faster (~0.7 s per second of video on an Apple M4, against ~1.8 s at the default) and keeps ~30 s of video under the 10 MB attachment limit on free plans. Export already uses up to half the CPU cores in parallel processes, so run one export at a time.
 
 ## Plan
 
