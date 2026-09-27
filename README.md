@@ -4,9 +4,9 @@ A local tool that lets agents record web app demos with animated zoom, a smooth 
 
 ## Example
 
-https://github.com/user-attachments/assets/893c92ce-2b43-4753-9308-9c0d127e1306
+https://github.com/user-attachments/assets/99199d3d-1066-4d4b-b7db-b0bda63ca106
 
-27 s, 1080p, 60 fps, unedited. Recorded from [examples/web-dashboard.json](examples/web-dashboard.json) on the [shadcn/ui example dashboard](https://ui.shadcn.com/view/new-york-v4/dashboard-01): the agent switches the chart range, selects a row, edits a target, opens the detail panel and hides a column. Zoom, cursor, pacing and background (Sonoma Horizon) are the tool's defaults.
+26 s, 1080p, 60 fps, unedited. Recorded from [examples/web-dashboard.json](examples/web-dashboard.json) on the [shadcn/ui example dashboard](https://ui.shadcn.com/view/new-york-v4/dashboard-01): the agent edits a target, assigns a reviewer, renames a section in its detail panel and switches the chart range. Zoom, cursor, pacing and background (Sonoma Horizon) are the tool's defaults.
 
 ## Try it
 
@@ -18,7 +18,7 @@ npx playwright install chromium
 npm run demo
 ```
 
-The demo opens a local mock app, edits a project name and shows the result. [examples/web-dashboard.json](examples/web-dashboard.json) records a real web app, the shadcn/ui example dashboard: it changes the chart range, edits a table row, opens the detail panel and hides a column. Everything runs locally in the browser, but the example depends on the site being up and its labels staying the same. The MP4 is written to `recordings/demo/video.mp4`. Use a new folder when recording again:
+The demo opens a local mock app, edits a project name and shows the result. [examples/web-dashboard.json](examples/web-dashboard.json) records a real web app, the shadcn/ui example dashboard: it edits a target, assigns a reviewer, renames a section in its detail panel and switches the chart range. Everything runs locally in the browser, but the example depends on the site being up and its labels staying the same. The MP4 is written to `recordings/demo/video.mp4`. Use a new folder when recording again:
 
 ```sh
 node src/cli.mjs record examples/demo.json --out recordings/my-demo
