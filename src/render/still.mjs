@@ -6,6 +6,7 @@ import { createDeviceFrame, deviceLayout, drawScreen } from './device.mjs';
 import { createFrame } from './scene.mjs';
 import { renderSettings } from './settings.mjs';
 import { drawToolbar, toolbarHeight, toolbarStyle } from './toolbar.mjs';
+import { framePreset } from './wallpapers.mjs';
 
 // The video's window (or phone) at exactly the screenshot's scale, so the page keeps every pixel,
 // with an even border of wallpaper: the padding's share of the longer side.
@@ -33,7 +34,7 @@ export function stillGeometry({ viewport, scale, device }, { padding, window: wi
 export async function frameImage(input, { url, device: name, scale, output, ...options } = {}) {
   const page = await loadImage(await readFile(input));
   const device = name === undefined ? undefined : mobileDevice(name);
-  const settings = renderSettings({ ...(device && { window: 'device' }), ...options });
+  const settings = renderSettings({ preset: framePreset, ...(device && { window: 'device' }), ...options });
   if (settings.window === 'device' && !device) throw new Error('--window device needs --device.');
   scale ??= device ? page.width / device.screen.width : 2;
   if (!Number.isFinite(scale) || scale < 1 || scale > 3) throw new Error('--scale must be between 1 and 3.');

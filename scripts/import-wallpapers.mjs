@@ -17,6 +17,7 @@ const system = '/System/Library/Desktop Pictures';
 const force = process.argv.includes('--force');
 const catalog = 'https://mesu.apple.com/assets/macos/com_apple_MobileAsset_DesktopPicture/com_apple_MobileAsset_DesktopPicture.xml';
 const cache = join(homedir(), 'Library/Caches/cutaway/wallpapers');
+const darkWallpaper = fileURLToPath(new URL('./dark-wallpaper.swift', import.meta.url));
 
 async function files(directory, pattern) {
   if (!existsSync(directory)) return [];
@@ -101,4 +102,15 @@ for (const path of [...stills, ...videos]) {
   }
   imported.push(name);
 }
+
+// A light/dark wallpaper such as Sonoma also gives its dark image, as <name>-night.
+const nights = stills.filter(path => imported.includes(slug(path)))
+  .map(path => ({ path, name: `${slug(path)}-night`, target: join(output, `${slug(path)}-night.jpg`) }));
+const pending = nights.filter(({ target }) => !existsSync(target) || force);
+if (pending.length) {
+  const { stdout } = await run('swift', [darkWallpaper, ...pending.flatMap(({ path, target }) => [path, target])]);
+  for (const target of stdout.split('\n').filter(Boolean)) await run('sips', ['-Z', '3840', target]);
+}
+imported.push(...nights.filter(({ target }) => existsSync(target)).map(({ name }) => name));
+
 console.log(`${imported.length} wallpapers in ${output}\n${imported.sort().join(', ')}`);

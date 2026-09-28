@@ -201,7 +201,7 @@ node src/cli.mjs render recordings/take --preset midnight --zoom 2       # anoth
 > [!TIP]
 > For PR evidence and bug repros, `--width 1280 --height 720 --quality standard` exports about 3× faster and keeps ~30 s under GitHub's 10 MB attachment limit.
 
-**More wallpapers:** `npm run wallpapers` converts the macOS wallpapers on this Mac to presets (`--preset tahoe-day`); add `--download` to `node scripts/import-wallpapers.mjs` for the ones macOS fetches on demand. They stay out of git, since they belong to Apple.
+**More wallpapers:** `npm run wallpapers` converts the macOS wallpapers on this Mac to presets (`--preset tahoe-day`); add `--download` to `node scripts/import-wallpapers.mjs` for the ones macOS fetches on demand. A light/dark wallpaper also gives its dark image as `<name>-night`, such as `sonoma-night` (this step uses `swift`, from the Xcode Command Line Tools). They stay out of git, since they belong to Apple.
 
 ### Session files
 
@@ -235,7 +235,7 @@ node src/cli.mjs frame /tmp/reports.png --url https://app.example.com/reports   
 | `--scale` | `2` (the phone's width on phones) | Pixels per page pixel in the screenshot |
 | `--output` | `<screenshot>.framed.png` | Any path |
 
-`--preset`, `--padding` and `--window` work as in [Export](#-export). The page is never resampled: the image is the screenshot plus its window and an even border of wallpaper.
+The wallpaper is `sonoma-night` once imported (see "More wallpapers" in [Export](#-export)), the video's default otherwise. `--preset`, `--padding` and `--window` work as in [Export](#-export). The page is never resampled: the image is the screenshot plus its window and an even border of wallpaper.
 
 ## 🚧 Limits
 

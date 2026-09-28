@@ -56,7 +56,7 @@ node <skill-directory>/scripts/run.mjs frame /absolute/shot.png --url <page addr
 node <skill-directory>/scripts/run.mjs frame /absolute/shot.png --device "iPhone 15 Pro"
 ```
 
-The result is `/absolute/shot.framed.png` (or `--output`): the browser window with the page's host on the wallpaper, or the drawn iPhone with status bar, at the screenshot's full resolution. `--preset`, `--padding` and `--window none` apply. A phone screenshot must be exactly the device's page size; the error names the viewport to set. To point out a defect, mark the page (evidencia-marcada) before the screenshot, then frame it. Deliver the framed PNG with its absolute path.
+The result is `/absolute/shot.framed.png` (or `--output`): the browser window with the page's host on the wallpaper, or the drawn iPhone with status bar, at the screenshot's full resolution. The wallpaper defaults to `sonoma-night` when imported (`npm run wallpapers` in the tool repository), the video's default otherwise. `--preset`, `--padding` and `--window none` apply. A phone screenshot must be exactly the device's page size; the error names the viewport to set. To point out a defect, mark the page (evidencia-marcada) before the screenshot, then frame it. Deliver the framed PNG with its absolute path.
 
 ## Setup and recovery — only when needed
 
