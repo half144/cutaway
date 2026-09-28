@@ -13,7 +13,7 @@ Animated zoom, a human cursor, motion blur and a macOS-style window, from a JSON
 ![Agent skill](https://img.shields.io/badge/agent%20skill-Claude%20Code%20%C2%B7%20Codex-D97757)
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue)
 
-[Quick start](#-quick-start) · [Writing a plan](#-writing-a-plan) · [Snapshots](#-snapshots) · [Phones](#-phones) · [Export](#-export) · [How it works](docs/how-it-works.md)
+[Quick start](#-quick-start) · [Writing a plan](#-writing-a-plan) · [Phones](#-phones) · [Export](#-export) · [Screenshots](#-screenshots) · [How it works](docs/how-it-works.md)
 
 </div>
 
@@ -123,7 +123,6 @@ Selectors are [Playwright locators](https://playwright.dev/docs/other-locators):
 | `scroll` | `y`, `duration` | Relative scroll in pixels: starts fast and glides to a stop |
 | `press` | `key` | A key or shortcut on the focused element (`Enter`, `ControlOrMeta+K`) |
 | `wait` | `duration` | Pause in seconds |
-| `snapshot` | `name` | Saves a framed image of the whole screen; see [Snapshots](#-snapshots) |
 
 ### Step options
 
@@ -148,31 +147,6 @@ Ambiguous selectors, missing elements and unmet expectations stop the recording,
 
 > [!WARNING]
 > The recorder really performs each step. A local frontend can still point at a production API or database, so check where it writes before recording a step that saves, pays or sends something.
-
-## 📸 Snapshots
-
-A still is enough for most card evidence. `snap` runs the plan without recording video and frames the screen at each `snapshot` step as the video would: wallpaper, browser window with the page's address and shadow, or the drawn iPhone for a phone `device`.
-
-```json
-{
-  "url": "http://localhost:3000",
-  "steps": [
-    { "action": "click", "selector": "#save", "expect": "#saved-message" },
-    { "action": "snapshot", "name": "saved" }
-  ]
-}
-```
-
-```sh
-node src/cli.mjs snap plan.json --out recordings/card-123   # → recordings/card-123/snapshots/saved.png
-node src/cli.mjs render recordings/card-123 --preset pearl  # frames them again, without repeating the steps
-```
-
-- **Size:** the page keeps every captured pixel (2×, 3× on phones), with an even wallpaper border set by `--padding`.
-- **Look:** `--preset`, `--padding` and `--window` apply as in videos; `--window none` leaves the page alone with rounded corners.
-- **In a video:** `record` saves the snapshots of its plan too, next to `video.mp4`. `snapshots/source/` keeps the unframed screens.
-
-Examples on the shadcn dashboard: [`examples/web-dashboard-snapshots.json`](examples/web-dashboard-snapshots.json) and [`examples/web-dashboard-mobile-snapshots.json`](examples/web-dashboard-mobile-snapshots.json).
 
 ## 📱 Phones
 
@@ -233,7 +207,6 @@ node src/cli.mjs render recordings/take --preset midnight --zoom 2       # anoth
 | File | Contents |
 | --- | --- |
 | `video.mp4` | The finished video |
-| `snapshots/*.png` | Framed snapshots; `snapshots/source/` has the plain screens |
 | `poster.png` | A frame from the middle, for a quick look |
 | `frames/*.png` | Lossless source frames |
 | `timeline.json` | Timestamps, cursor, clicks, focus regions and status |
@@ -242,6 +215,26 @@ node src/cli.mjs render recordings/take --preset midnight --zoom 2       # anoth
 | `workflow.json` | Preflight, browser setup, recording and export timing |
 
 The frames show whatever the page shows, including typed text. On phones, the timeline also keeps the typed characters to draw the keyboard, except in password fields.
+
+## 📸 Screenshots
+
+When a still is enough, such as evidence on a card, `frame` gives any viewport screenshot the video's look: the browser window on the wallpaper, or the drawn phone. Take the screenshot with whatever reaches the screen best. [agent-browser](https://github.com/vercel-labs/agent-browser) explores step by step and can reuse a signed-in Chrome.
+
+```sh
+agent-browser set viewport 1440 810 2        # web, at 2× like a recording
+agent-browser open https://app.example.com/reports
+agent-browser screenshot /tmp/reports.png
+node src/cli.mjs frame /tmp/reports.png --url https://app.example.com/reports   # → /tmp/reports.framed.png
+```
+
+| Option | Default | What it does |
+| --- | --- | --- |
+| `--url` | none | Address shown in the toolbar (host only) |
+| `--device` | none | Draws that phone around the page; the screenshot must be its viewport, e.g. `set viewport 393 764 3` for `iPhone 15 Pro` |
+| `--scale` | `2` (the phone's width on phones) | Pixels per page pixel in the screenshot |
+| `--output` | `<screenshot>.framed.png` | Any path |
+
+`--preset`, `--padding` and `--window` work as in [Export](#-export). The page is never resampled: the image is the screenshot plus its window and an even border of wallpaper.
 
 ## 🚧 Limits
 

@@ -49,7 +49,7 @@ export async function render(directory, options = {}) {
   const timeline = paced.timeline;
   const viewport = timeline.viewport;
 
-  const toolbar = windowStyle === 'browser' ? await toolbarStyle(timeline, directory) : null;
+  const toolbar = windowStyle === 'browser' ? await toolbarStyle(join(directory, timeline.frames[0].file), timeline.url) : null;
   const device = windowStyle === 'device' ? deviceLayout(timeline.device, viewport) : null;
   const { frame, window, ratio, scene: sceneSize, bounds } = device
     ? createDeviceFrame(width, height, viewport, padding, device)

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFile, writeFile } from 'node:fs/promises';
+import { writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { help, parseCliArgs } from './cli/options.mjs';
 import { doctor } from './cli/doctor.mjs';
@@ -15,6 +15,15 @@ async function main() {
     if (!report.ready) process.exitCode = 1;
     return console.log(JSON.stringify(report, null, 2));
   }
+  if (command === 'frame') {
+    const { frameImage } = await import('./render/still.mjs');
+    const output = await frameImage(resolve(input), {
+      ...renderOptions, url: values.url, device: values.device,
+      scale: values.scale === undefined ? undefined : Number(values.scale),
+      output: renderOptions.output && resolve(renderOptions.output),
+    });
+    return console.log(JSON.stringify({ output }, null, 2));
+  }
   if (command === 'validate') {
     const plan = await loadPlan(resolve(input));
     return console.log(JSON.stringify({ valid: true, steps: plan.steps.length, viewport: plan.viewport, device: plan.device?.name,
@@ -22,33 +31,25 @@ async function main() {
   }
 
   const beginning = performance.now();
-  const capturing = command === 'record' || command === 'snap';
-  const directory = capturing ? resolve(values.out ?? `recordings/${Date.now()}`) : resolve(input);
-  // Rendering a snap capture only frames its snapshots again, with the new options.
-  const shouldRender = command === 'render'
-    ? JSON.parse(await readFile(join(directory, 'timeline.json'), 'utf8')).video !== false
-    : command === 'record' && !values['capture-only'];
+  const directory = command === 'record'
+    ? resolve(values.out ?? `recordings/${Date.now()}`) : resolve(input);
+  const shouldRender = command === 'render' || !values['capture-only'];
   renderSettings(renderOptions);
-  if (capturing) {
-    const plan = await loadPlan(resolve(input));
-    if (command === 'snap' && !plan.steps.some(step => step.action === 'snapshot')) {
-      throw new Error('snap needs at least one { "action": "snapshot" } step in the plan.');
-    }
-  }
+  if (command === 'record') await loadPlan(resolve(input));
   process.stderr.write('Checking recording dependencies…\n');
-  const health = await doctor({ capture: capturing, render: shouldRender });
+  const health = await doctor({ capture: command === 'record', render: shouldRender });
   if (!health.ready) {
     throw new Error(health.checks.filter(check => !check.ok)
       .map(check => `${check.name}: ${check.error}\n${check.fix}`).join('\n'));
   }
   const timings = { preflightSeconds: (performance.now() - beginning) / 1000 };
   let result = { directory, status: 'captured' };
-  if (capturing) {
+  if (command === 'record') {
     const { record } = await import('./record.mjs');
     process.stderr.write('Opening browser and capturing workflow…\n');
     const start = performance.now();
     const timeline = await record(resolve(input), directory, {
-      headed: values.headed, storageState: values['storage-state'], video: command === 'record',
+      headed: values.headed, storageState: values['storage-state'],
     });
     timings.recordSeconds = (performance.now() - start) / 1000;
     timings.browserSetupSeconds = timeline.setupSeconds;
@@ -67,10 +68,6 @@ async function main() {
     timings.exportSeconds = (performance.now() - start) / 1000;
     process.stderr.write(`Video ready: ${result.output}\n`);
   }
-  const { frameSnapshots } = await import('./render/snapshot.mjs');
-  const snapshots = await frameSnapshots(directory, renderOptions);
-  for (const snapshot of snapshots) process.stderr.write(`Snapshot ready: ${snapshot}\n`);
-  if (snapshots.length) result.snapshots = snapshots;
   timings.totalSeconds = (performance.now() - beginning) / 1000;
   const workflow = { command, timings, note: 'CLI timings only; agent planning before invocation is not measured.' };
   await writeFile(join(directory, 'workflow.json'), JSON.stringify(workflow, null, 2));

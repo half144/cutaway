@@ -1,6 +1,6 @@
 ---
 name: cutaway
-description: Record polished browser workflow demos with animated zoom, a smooth cursor, motion blur, and local MP4 export, or framed screenshots without video. Use for web UI demos, tutorials and still evidence for cards or PRs in one Chromium tab.
+description: Record polished browser workflow demos with animated zoom, a smooth cursor, motion blur, and local MP4 export, and frame screenshots with the same look. Use for web UI demos and tutorials in one Chromium tab, and for still evidence on cards or PRs.
 ---
 
 # Cutaway
@@ -40,19 +40,23 @@ Selectors are Playwright locators: CSS plus `role=textbox[name="Email"]`, `:has-
 
 Actions: `click`; `type` (replaces text with visible typing); `focus` (frames a visible element without clicking); `scroll` (`y` relative pixels, optional `duration`); `press` (`key`, e.g. `Enter`); `wait` (`duration` seconds); `upload` (`selector` of the button that opens the file chooser, `file` as a path or array of paths relative to the plan: the click is shown, no native dialog opens and the files go straight to the page). Each step accepts `pause` and `expect` (visible selector). Leave `pause` unset for adaptive human pacing: after clicks and keys the capture waits for animations to settle, and an `expect` result stays on screen long enough to register (0.6 s + 0.15 s per word, 0.8–1.6 s). Pauses vary slightly, like a person's. Set `pause` only when the content needs a deliberate editorial hold. Give important steps an `expect`: the camera frames that result with the clicked control, or moves to it. `timeout` at the plan root sets action timeout in milliseconds (default 10000, maximum 120000). Use a larger `focus` container when surrounding context matters; tall regions are framed from the top. A short closing hold and zoom-out are already included. Zoom is for local detail: a click whose effect fills the screen (a chart redraw, a panel opening) plays out on the overview, while typing, menus and small effects get a close-up. Local actions less than ~3 s apart share one continuous close-up, which holds 1.8 s after the last click, even during a network wait, so use explicit `focus` when the user needs a longer one. Manual `scroll` ends a close-up; automatic scrolling to the next target does not, and it brings the next step's target into view too. Typing into wide fields follows the caret. Shortcuts with modifiers (`press` with `ControlOrMeta+K`) and named keys that change the page (Escape, Enter, Tab) are shown on screen; plain character keys are not. The recorder adds human timing on its own (varied pauses, and the pointer moving to the next visible target in one stroke while the viewer reads), and balanced pacing trims dead time where nothing on screen changes, so don't pad plans with extra `wait` steps. Do not add a click immediately before `type` just to focus that same field. Rendering uses balanced pacing with continuous speed ramps (up to 4×) to shorten only long inactive waits while preserving their start and end at real speed; pass `--pacing original` when captured duration must remain exact.
 
-## Snapshots (still evidence, no video)
-
-When a still is enough (card or ticket evidence, a PR picture of a result), add `snapshot` steps and run `snap` instead of `record`:
-
-```sh
-node <skill-directory>/scripts/run.mjs snap /absolute/plan.json --out /absolute/new-directory
-```
-
-`{ "action": "snapshot", "name": "saved" }` saves `snapshots/saved.png`: the whole screen, framed as in the video (browser window on the wallpaper, or the drawn phone for a `device` plan), at full capture resolution. It takes no selector. `name` (letters, digits, `_`, `-`) defaults to `step-N`. Put the snapshot after the step whose `expect` shows the result, so the state is settled. `snap` records no video and needs no FFmpeg; the result JSON lists `snapshots`. `render <directory> --preset <name>`, `--padding` or `--window none` frames them again without repeating the steps. `record` also saves snapshots in its plan. Deliver the framed PNGs with their absolute paths.
-
 ## Phones
 
 When the user asks for a mobile, phone or vertical recording, add `"device": "iPhone 15 Pro"` (or another phone from Playwright's device list, such as `"Pixel 7"`) at the plan root and leave out `viewport`. The page runs in Chromium at the phone's size with touch input and a mobile user agent. Write `tap` and `swipe` (`y` pixels) for `click` and `scroll`; `hold` seconds on a tap makes a long press. Pick selectors from the app's mobile layout (a bottom tab bar or a menu button instead of a desktop sidebar). The export defaults to a 1080×1920 video with a drawn phone, a status bar, white touch indicators instead of a cursor and an on-screen keyboard while typing; a close-up fills the width with the screen and only pans vertically. For a feed post pass `--width 1080 --height 1350`; for a landscape video with the phone centered, `--width 1920 --height 1080`; for PR evidence, `--width 720 --height 1280 --quality standard`. The timeline keeps typed characters (not password fields) to draw the keyboard.
+
+## Screenshots (still evidence, no video)
+
+When a still is enough (card or ticket evidence, a PR picture of a result), don't record: reach the screen with agent-browser, take a viewport screenshot and frame it. agent-browser explores step by step, scrolls to the exact spot and can reuse a signed-in Chrome (`--auto-connect` or `--profile`).
+
+```sh
+agent-browser set viewport 1440 810 2                 # web, 2×
+agent-browser set viewport 393 764 3                  # phone: iPhone 15 Pro's page between its system bars
+agent-browser screenshot /absolute/shot.png           # the viewport, not --full
+node <skill-directory>/scripts/run.mjs frame /absolute/shot.png --url <page address>
+node <skill-directory>/scripts/run.mjs frame /absolute/shot.png --device "iPhone 15 Pro"
+```
+
+The result is `/absolute/shot.framed.png` (or `--output`): the browser window with the page's host on the wallpaper, or the drawn iPhone with status bar, at the screenshot's full resolution. `--preset`, `--padding` and `--window none` apply. A phone screenshot must be exactly the device's page size; the error names the viewport to set. To point out a defect, mark the page (evidencia-marcada) before the screenshot, then frame it. Deliver the framed PNG with its absolute path.
 
 ## Setup and recovery — only when needed
 

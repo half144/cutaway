@@ -1,21 +1,21 @@
 import { createCanvas, loadImage } from '@napi-rs/canvas';
 import { readFile } from 'node:fs/promises';
-import { basename, join } from 'node:path';
+import { basename } from 'node:path';
 
 // Measured in page pixels, like the captured viewport.
 export const toolbarHeight = 40;
 export const uiFont = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
 // Toolbar tone follows the top of the page so the window reads as one piece.
-export async function toolbarStyle(timeline, directory) {
-  const first = await loadImage(await readFile(join(directory, timeline.frames[0].file)));
+export async function toolbarStyle(page, address) {
+  const first = await loadImage(await readFile(page));
   const probe = createCanvas(16, 1);
   const context = probe.getContext('2d');
   context.drawImage(first, 0, 0, first.width, Math.max(1, first.height / 100), 0, 0, 16, 1);
   const pixels = context.getImageData(0, 0, 16, 1).data;
   let luminance = 0;
   for (let i = 0; i < pixels.length; i += 4) luminance += (0.2126 * pixels[i] + 0.7152 * pixels[i + 1] + 0.0722 * pixels[i + 2]) / 255 / 16;
-  const url = timeline.url ? new URL(timeline.url) : null;
+  const url = address ? new URL(address) : null;
   return {
     dark: luminance < 0.4,
     host: url && (url.protocol === 'file:' ? basename(url.pathname) : url.host.replace(/^www\./, '')),
