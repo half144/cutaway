@@ -13,7 +13,7 @@ Animated zoom, a human cursor, motion blur and a macOS-style window, from a JSON
 ![Agent skill](https://img.shields.io/badge/agent%20skill-Claude%20Code%20%C2%B7%20Codex-D97757)
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue)
 
-[Quick start](#-quick-start) · [Writing a plan](#-writing-a-plan) · [Phones](#-phones) · [Export](#-export) · [How it works](docs/how-it-works.md)
+[Quick start](#-quick-start) · [Writing a plan](#-writing-a-plan) · [Phones](#-phones) · [Export](#-export) · [Screenshots](#-screenshots) · [How it works](docs/how-it-works.md)
 
 </div>
 
@@ -41,6 +41,7 @@ https://github.com/user-attachments/assets/2c80b028-ebcc-45d9-8aaf-a642d342df32
 - **A finished scene.** Wallpaper, browser window with traffic lights, shadow, motion blur and a shortcut pill.
 - **Honest timing.** Dead time is sped up; clicks, typing and results play at real speed.
 - **Phones too.** Touch input, a drawn device, status bar and on-screen keyboard.
+- **Stills too.** `frame` gives any screenshot the same window or phone, for evidence that needs no video. See [Screenshots](#-screenshots).
 
 No AI model, cloud service or upload is involved: Playwright drives Chromium, Skia composes, FFmpeg encodes.
 
@@ -215,6 +216,26 @@ node src/cli.mjs render recordings/take --preset midnight --zoom 2       # anoth
 | `workflow.json` | Preflight, browser setup, recording and export timing |
 
 The frames show whatever the page shows, including typed text. On phones, the timeline also keeps the typed characters to draw the keyboard, except in password fields.
+
+## 📸 Screenshots
+
+When a still is enough, such as evidence on a card, `frame` gives any viewport screenshot the video's look: the browser window on the wallpaper, or the drawn phone. Take the screenshot with whatever reaches the screen best. [agent-browser](https://github.com/vercel-labs/agent-browser) explores step by step and can reuse a signed-in Chrome.
+
+```sh
+agent-browser set viewport 1440 810 2        # web, at 2× like a recording
+agent-browser open https://app.example.com/reports
+agent-browser screenshot /tmp/reports.png
+node src/cli.mjs frame /tmp/reports.png --url https://app.example.com/reports   # → /tmp/reports.framed.png
+```
+
+| Option | Default | What it does |
+| --- | --- | --- |
+| `--url` | none | Address shown in the toolbar (host only) |
+| `--device` | none | Draws that phone around the page; the screenshot must be its viewport, e.g. `set viewport 393 764 3` for `iPhone 15 Pro` |
+| `--scale` | `2` (the phone's width on phones) | Pixels per page pixel in the screenshot |
+| `--output` | `<screenshot>.framed.png` | Any path |
+
+`--preset`, `--padding` and `--window` work as in [Export](#-export). The page is never resampled: the image is the screenshot plus its window and an even border of wallpaper.
 
 ## 🚧 Limits
 

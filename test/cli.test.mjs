@@ -13,6 +13,8 @@ test('doctor takes no positional input; validate requires a plan', () => {
   assert.equal(parseCliArgs(['doctor']).command, 'doctor');
   assert.throws(() => parseCliArgs(['doctor', 'extra']));
   assert.throws(() => parseCliArgs(['validate']));
+  assert.equal(parseCliArgs(['frame', 'shot.png', '--device', 'iPhone 15 Pro']).values.device, 'iPhone 15 Pro');
+  assert.throws(() => parseCliArgs(['frame']));
 });
 
 test('skill runner validates from a different project without FFmpeg', async () => {

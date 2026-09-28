@@ -1,6 +1,6 @@
 ---
 name: cutaway
-description: Record polished browser workflow demos with animated zoom, a smooth cursor, motion blur, and local MP4 export. Use for web UI demos and tutorials in one Chromium tab.
+description: Record polished browser workflow demos with animated zoom, a smooth cursor, motion blur, and local MP4 export, and frame screenshots with the same look. Use for web UI demos and tutorials in one Chromium tab, and for still evidence on cards or PRs.
 ---
 
 # Cutaway
@@ -43,6 +43,20 @@ Actions: `click`; `type` (replaces text with visible typing); `focus` (frames a 
 ## Phones
 
 When the user asks for a mobile, phone or vertical recording, add `"device": "iPhone 15 Pro"` (or another phone from Playwright's device list, such as `"Pixel 7"`) at the plan root and leave out `viewport`. The page runs in Chromium at the phone's size with touch input and a mobile user agent. Write `tap` and `swipe` (`y` pixels) for `click` and `scroll`; `hold` seconds on a tap makes a long press. Pick selectors from the app's mobile layout (a bottom tab bar or a menu button instead of a desktop sidebar). The export defaults to a 1080×1920 video with a drawn phone, a status bar, white touch indicators instead of a cursor and an on-screen keyboard while typing; a close-up fills the width with the screen and only pans vertically. For a feed post pass `--width 1080 --height 1350`; for a landscape video with the phone centered, `--width 1920 --height 1080`; for PR evidence, `--width 720 --height 1280 --quality standard`. The timeline keeps typed characters (not password fields) to draw the keyboard.
+
+## Screenshots (still evidence, no video)
+
+When a still is enough (card or ticket evidence, a PR picture of a result), don't record: reach the screen with agent-browser, take a viewport screenshot and frame it. agent-browser explores step by step, scrolls to the exact spot and can reuse a signed-in Chrome (`--auto-connect` or `--profile`).
+
+```sh
+agent-browser set viewport 1440 810 2                 # web, 2×
+agent-browser set viewport 393 764 3                  # phone: iPhone 15 Pro's page between its system bars
+agent-browser screenshot /absolute/shot.png           # the viewport, not --full
+node <skill-directory>/scripts/run.mjs frame /absolute/shot.png --url <page address>
+node <skill-directory>/scripts/run.mjs frame /absolute/shot.png --device "iPhone 15 Pro"
+```
+
+The result is `/absolute/shot.framed.png` (or `--output`): the browser window with the page's host on the wallpaper, or the drawn iPhone with status bar, at the screenshot's full resolution. `--preset`, `--padding` and `--window none` apply. A phone screenshot must be exactly the device's page size; the error names the viewport to set. To point out a defect, mark the page (evidencia-marcada) before the screenshot, then frame it. Deliver the framed PNG with its absolute path.
 
 ## Setup and recovery — only when needed
 

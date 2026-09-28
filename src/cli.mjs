@@ -15,6 +15,15 @@ async function main() {
     if (!report.ready) process.exitCode = 1;
     return console.log(JSON.stringify(report, null, 2));
   }
+  if (command === 'frame') {
+    const { frameImage } = await import('./render/still.mjs');
+    const output = await frameImage(resolve(input), {
+      ...renderOptions, url: values.url, device: values.device,
+      scale: values.scale === undefined ? undefined : Number(values.scale),
+      output: renderOptions.output && resolve(renderOptions.output),
+    });
+    return console.log(JSON.stringify({ output }, null, 2));
+  }
   if (command === 'validate') {
     const plan = await loadPlan(resolve(input));
     return console.log(JSON.stringify({ valid: true, steps: plan.steps.length, viewport: plan.viewport, device: plan.device?.name,
