@@ -13,7 +13,7 @@ Animated zoom, a human cursor, motion blur and a macOS-style window, from a JSON
 ![Agent skill](https://img.shields.io/badge/agent%20skill-Claude%20Code%20%C2%B7%20Codex-D97757)
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue)
 
-[Quick start](#-quick-start) · [Writing a plan](#-writing-a-plan) · [Phones](#-phones) · [Export](#-export) · [How it works](docs/how-it-works.md)
+[Quick start](#-quick-start) · [Writing a plan](#-writing-a-plan) · [Snapshots](#-snapshots) · [Phones](#-phones) · [Export](#-export) · [How it works](docs/how-it-works.md)
 
 </div>
 
@@ -123,6 +123,7 @@ Selectors are [Playwright locators](https://playwright.dev/docs/other-locators):
 | `scroll` | `y`, `duration` | Relative scroll in pixels: starts fast and glides to a stop |
 | `press` | `key` | A key or shortcut on the focused element (`Enter`, `ControlOrMeta+K`) |
 | `wait` | `duration` | Pause in seconds |
+| `snapshot` | `selector` (optional), `name` | Saves a framed image of that element, or of the whole page; see [Snapshots](#-snapshots) |
 
 ### Step options
 
@@ -147,6 +148,30 @@ Ambiguous selectors, missing elements and unmet expectations stop the recording,
 
 > [!WARNING]
 > The recorder really performs each step. A local frontend can still point at a production API or database, so check where it writes before recording a step that saves, pays or sends something.
+
+## 📸 Snapshots
+
+A still is enough for most card evidence. `snap` runs the plan without recording video and frames each `snapshot` step like the video's window: wallpaper, browser chrome with the page's address, rounded corners and shadow.
+
+```json
+{
+  "url": "http://localhost:3000",
+  "steps": [
+    { "action": "click", "selector": "#save", "expect": "#saved-message" },
+    { "action": "snapshot", "selector": "#saved-message", "name": "saved" },
+    { "action": "snapshot", "name": "page" }
+  ]
+}
+```
+
+```sh
+node src/cli.mjs snap plan.json --out recordings/card-123   # → snapshots/saved.png, snapshots/page.png
+node src/cli.mjs render recordings/card-123 --preset pearl  # frames them again, without repeating the steps
+```
+
+- **Area:** the element plus a 16 px margin, cut at the edge of the viewport; without `selector`, the whole viewport. The image is sized to that area at the capture scale (2×), with a wallpaper border around it.
+- **Look:** `--preset` and `--window browser|none` apply as in videos. Areas narrower than 480 px keep the traffic lights and drop the address. On phones the screen is rounded, without a drawn device.
+- **In a video:** `record` saves the snapshots of its plan too, next to `video.mp4`. `snapshots/source/` keeps the unframed crops.
 
 ## 📱 Phones
 
@@ -207,6 +232,7 @@ node src/cli.mjs render recordings/take --preset midnight --zoom 2       # anoth
 | File | Contents |
 | --- | --- |
 | `video.mp4` | The finished video |
+| `snapshots/*.png` | Framed snapshots; `snapshots/source/` has the plain crops |
 | `poster.png` | A frame from the middle, for a quick look |
 | `frames/*.png` | Lossless source frames |
 | `timeline.json` | Timestamps, cursor, clicks, focus regions and status |

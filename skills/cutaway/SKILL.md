@@ -1,6 +1,6 @@
 ---
 name: cutaway
-description: Record polished browser workflow demos with animated zoom, a smooth cursor, motion blur, and local MP4 export. Use for web UI demos and tutorials in one Chromium tab.
+description: Record polished browser workflow demos with animated zoom, a smooth cursor, motion blur, and local MP4 export, or framed screenshots of a page area without video. Use for web UI demos, tutorials and still evidence for cards or PRs in one Chromium tab.
 ---
 
 # Cutaway
@@ -39,6 +39,16 @@ Default output is **1920×1080 at 60 fps**: the Sonoma Horizon wallpaper (after 
 Selectors are Playwright locators: CSS plus `role=textbox[name="Email"]`, `:has-text("Continue")` and `:text-is("Skip")`, which help when the app has no test IDs. Each must match exactly one element. The example selectors are placeholders for your app, not selectors to guess. `expect` must identify the actual result, not an always-visible empty container. Default capture scale: 2× (2880×1620 source pixels at the default viewport). Set `captureScale: 3` in the plan for a 4K delivery when useful; source dimensions must remain at most 8192 pixels. Default viewport: 1440×810 (16:9, matching the export); override with `viewport` only when the app needs a different size. `hide` at the plan root takes CSS selectors (not Playwright ones) removed from every frame, such as `["nextjs-portal"]` for the Next.js dev tools badge on a dev server.
 
 Actions: `click`; `type` (replaces text with visible typing); `focus` (frames a visible element without clicking); `scroll` (`y` relative pixels, optional `duration`); `press` (`key`, e.g. `Enter`); `wait` (`duration` seconds); `upload` (`selector` of the button that opens the file chooser, `file` as a path or array of paths relative to the plan: the click is shown, no native dialog opens and the files go straight to the page). Each step accepts `pause` and `expect` (visible selector). Leave `pause` unset for adaptive human pacing: after clicks and keys the capture waits for animations to settle, and an `expect` result stays on screen long enough to register (0.6 s + 0.15 s per word, 0.8–1.6 s). Pauses vary slightly, like a person's. Set `pause` only when the content needs a deliberate editorial hold. Give important steps an `expect`: the camera frames that result with the clicked control, or moves to it. `timeout` at the plan root sets action timeout in milliseconds (default 10000, maximum 120000). Use a larger `focus` container when surrounding context matters; tall regions are framed from the top. A short closing hold and zoom-out are already included. Zoom is for local detail: a click whose effect fills the screen (a chart redraw, a panel opening) plays out on the overview, while typing, menus and small effects get a close-up. Local actions less than ~3 s apart share one continuous close-up, which holds 1.8 s after the last click, even during a network wait, so use explicit `focus` when the user needs a longer one. Manual `scroll` ends a close-up; automatic scrolling to the next target does not, and it brings the next step's target into view too. Typing into wide fields follows the caret. Shortcuts with modifiers (`press` with `ControlOrMeta+K`) and named keys that change the page (Escape, Enter, Tab) are shown on screen; plain character keys are not. The recorder adds human timing on its own (varied pauses, and the pointer moving to the next visible target in one stroke while the viewer reads), and balanced pacing trims dead time where nothing on screen changes, so don't pad plans with extra `wait` steps. Do not add a click immediately before `type` just to focus that same field. Rendering uses balanced pacing with continuous speed ramps (up to 4×) to shorten only long inactive waits while preserving their start and end at real speed; pass `--pacing original` when captured duration must remain exact.
+
+## Snapshots (still evidence, no video)
+
+When a still is enough (card or ticket evidence, a PR picture of a result), add `snapshot` steps and run `snap` instead of `record`:
+
+```sh
+node <skill-directory>/scripts/run.mjs snap /absolute/plan.json --out /absolute/new-directory
+```
+
+`{ "action": "snapshot", "selector": "#result", "name": "saved" }` saves `snapshots/saved.png`: the element plus a 16 px margin, framed in the browser window on the wallpaper, at 2×. Leave out `selector` for the whole viewport; `name` (letters, digits, `_`, `-`) defaults to `step-N`. Put the snapshot after the step whose `expect` shows the result, so the state is settled. `snap` records no video and needs no FFmpeg; the result JSON lists `snapshots`. `render <directory> --preset <name>` or `--window none` frames them again without repeating the steps. `record` also saves snapshots in its plan. Deliver the framed PNGs with their absolute paths.
 
 ## Phones
 

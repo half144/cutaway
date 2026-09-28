@@ -5,6 +5,7 @@ export const help = `cutaway — cinematic browser recordings for agents
   cutaway doctor
   cutaway validate <plan.json>
   cutaway record <plan.json> --out <new-directory> [--headed] [--capture-only]
+  cutaway snap <plan.json> --out <new-directory> [--headed]   (framed images of snapshot steps, no video)
   cutaway render <recording-directory> [--output <video.mp4>]
 
 Rendering: --width 1920 --height 1080 --fps 60 --zoom 1.8 --blur 0.75
@@ -57,7 +58,7 @@ export function parseCliArgs(args = process.argv.slice(2)) {
   const [command, input] = positionals;
   if (values.help || !command) return { showHelp: true };
   if (command === 'doctor' && positionals.length === 1) return { command, values };
-  if (!['record', 'render', 'validate'].includes(command) || !input || positionals.length !== 2) {
+  if (!['record', 'snap', 'render', 'validate'].includes(command) || !input || positionals.length !== 2) {
     throw new Error(help);
   }
 

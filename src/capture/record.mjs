@@ -6,6 +6,7 @@ import { loadPlan } from '../plan.mjs';
 import { ActionRunner } from './actions.mjs';
 import { hideElements, invalidSelectors, isQuietSpot, waitForSettled, watchChanges } from './page-state.mjs';
 import { ScreencastRecorder } from './screencast.mjs';
+import { takeSnapshot } from './snapshot.mjs';
 import { TouchRunner } from './touch.mjs';
 
 // Where the pointer waits before the first gesture: a spot that reacts to nothing on hover.
@@ -35,7 +36,8 @@ function createTimeline(viewport) {
   };
 }
 
-export async function record(planPath, directory, { headed = false, storageState } = {}) {
+// Without video, only the snapshots are kept: no screencast and no opening or closing beat.
+export async function record(planPath, directory, { headed = false, storageState, video = true } = {}) {
   const beginning = performance.now();
   const plan = await loadPlan(planPath);
   await mkdir(directory, { recursive: true });
@@ -50,6 +52,7 @@ export async function record(planPath, directory, { headed = false, storageState
   address.search = '';
   address.hash = '';
   timeline.url = address.href;
+  timeline.video = video;
   let capture;
   let popupError;
   let startedAt;
@@ -99,13 +102,15 @@ export async function record(planPath, directory, { headed = false, storageState
     await writeFile(join(directory, 'frames', '000000.png'), initial);
     timeline.frames.push({ t: 0, file: 'frames/000000.png' });
 
-    capture = new ScreencastRecorder(session, directory, timeline, {
-      width: Math.round(plan.viewport.width * plan.captureScale),
-      height: Math.round(plan.viewport.height * plan.captureScale),
-    }, startedAt);
-    await capture.start();
-    // A calm opening beat before the first gesture.
-    await sleep(600);
+    if (video) {
+      capture = new ScreencastRecorder(session, directory, timeline, {
+        width: Math.round(plan.viewport.width * plan.captureScale),
+        height: Math.round(plan.viewport.height * plan.captureScale),
+      }, startedAt);
+      await capture.start();
+      // A calm opening beat before the first gesture.
+      await sleep(600);
+    }
 
     const actions = plan.device ? new TouchRunner(page, timeline, now, session) : new ActionRunner(page, timeline, now, initialPointer);
     for (const [index, step] of plan.steps.entries()) {
@@ -113,12 +118,12 @@ export async function record(planPath, directory, { headed = false, storageState
       process.stderr.write(`Recording ${index + 1}/${plan.steps.length}: ${step.action}\n`);
       const recordStep = { action: step.action, start: now() };
       timeline.steps.push(recordStep);
-      const timing = await actions.run(step, index, plan.steps[index + 1]);
-      Object.assign(recordStep, timing);
+      if (step.action === 'snapshot') await takeSnapshot(page, step, index, directory, timeline, now);
+      else Object.assign(recordStep, await actions.run(step, index, plan.steps[index + 1]));
       recordStep.end = now();
     }
 
-    await sleep(2600);
+    if (video) await sleep(2600);
     assertHealthy();
     timeline.status = 'complete';
   } catch (error) {

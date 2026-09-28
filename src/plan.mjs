@@ -3,7 +3,7 @@ import { dirname, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { devices } from 'playwright';
 
-const actions = new Set(['click', 'type', 'scroll', 'wait', 'focus', 'press', 'upload']);
+const actions = new Set(['click', 'type', 'scroll', 'wait', 'focus', 'press', 'upload', 'snapshot']);
 // On a phone the same gestures read as a tap and a swipe.
 const aliases = { tap: 'click', swipe: 'scroll' };
 // Space the phone's system UI takes above and below the page, in CSS pixels: the status bar and the
@@ -55,7 +55,10 @@ export function validatePlan(plan) {
     || !plan.hide.every(selector => typeof selector === 'string' && selector.trim()))) {
     throw new Error('hide must be a non-empty array of CSS selectors.');
   }
-  const steps = plan.steps.map(step => aliases[step?.action] ? { ...step, action: aliases[step.action] } : step);
+  // A snapshot is named after its step when unnamed, so every image has its own file.
+  const steps = plan.steps.map((step, index) => aliases[step?.action] ? { ...step, action: aliases[step.action] }
+    : step?.action === 'snapshot' ? { name: `step-${index + 1}`, ...step } : step);
+  const snapshotNames = new Set();
   for (const [index, step] of steps.entries()) {
     const fail = message => { throw new Error(`Step ${index + 1}: ${message}`); };
     if (!step || !actions.has(step.action)) fail('unsupported action.');
@@ -65,6 +68,13 @@ export function validatePlan(plan) {
     }
     if (step.file !== undefined && step.action !== 'upload') fail('file belongs to an upload step.');
     if (step.selector !== undefined && typeof step.selector !== 'string') fail('selector must be a string.');
+    if (step.name !== undefined && (step.action !== 'snapshot' || typeof step.name !== 'string' || !/^[\w-]{1,60}$/.test(step.name))) {
+      fail('name belongs to a snapshot step: letters, digits, _ and -, up to 60 characters.');
+    }
+    if (step.action === 'snapshot') {
+      if (snapshotNames.has(step.name)) fail(`another snapshot is already named "${step.name}".`);
+      snapshotNames.add(step.name);
+    }
     if (step.expect !== undefined && (typeof step.expect !== 'string' || !step.expect)) fail('expect must be a non-empty selector.');
     if (step.action === 'type' && typeof step.text !== 'string') fail('text must be a string.');
     if (step.action === 'press' && typeof step.key !== 'string') fail('key must be a string.');
