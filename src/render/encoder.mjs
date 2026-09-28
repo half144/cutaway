@@ -1,12 +1,13 @@
 import { spawn } from 'node:child_process';
 import { rename, writeFile } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
+import { ffmpeg as ffmpegPath } from '../ffmpeg.mjs';
 
 export class VideoEncoder {
   constructor(path, width, height, fps, quality = 'high') {
     this.error = null;
     this.stderr = '';
-    this.process = spawn('ffmpeg', [
+    this.process = spawn(ffmpegPath, [
       '-hide_banner', '-loglevel', 'error', '-y',
       '-f', 'rawvideo', '-pixel_format', 'rgba',
       '-video_size', `${width}x${height}`, '-framerate', String(fps), '-i', 'pipe:0',
@@ -71,7 +72,7 @@ export async function concatSegments(segments, outputPath) {
   const list = join(directory, 'segments.txt');
   await writeFile(list, segments.map(segment => `file '${basename(segment)}'\n`).join(''));
   const temporaryPath = join(directory, 'joined.mp4');
-  const ffmpeg = spawn('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'concat', '-safe', '0',
+  const ffmpeg = spawn(ffmpegPath, ['-hide_banner', '-loglevel', 'error', '-y', '-f', 'concat', '-safe', '0',
     '-i', list, '-c', 'copy', '-movflags', '+faststart', temporaryPath], { stdio: ['ignore', 'ignore', 'pipe'] });
   let stderr = '';
   ffmpeg.stderr.on('data', chunk => {

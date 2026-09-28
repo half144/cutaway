@@ -22,13 +22,10 @@ test('skill runner validates from a different project without FFmpeg', async () 
   assert.equal(JSON.parse(stdout).steps, 4);
 });
 
-test('doctor reports missing FFmpeg with a nonzero exit status', async () => {
-  await assert.rejects(run(process.execPath, [cli, 'doctor'], {
+test('doctor finds the bundled FFmpeg without one on PATH', async () => {
+  const { stdout } = await run(process.execPath, [cli, 'doctor'], {
     env: { ...process.env, PATH: '' },
-  }), error => {
-    const report = JSON.parse(error.stdout);
-    assert.equal(report.ready, false);
-    assert.equal(report.checks.find(check => check.name === 'ffmpeg').ok, false);
-    return true;
   });
+  const report = JSON.parse(stdout);
+  assert.equal(report.checks.find(check => check.name === 'ffmpeg').ok, true);
 });

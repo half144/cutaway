@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process';
 import { access } from 'node:fs/promises';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
+import { ffmpeg } from '../ffmpeg.mjs';
 
 const run = promisify(execFile);
 const repository = fileURLToPath(new URL('../../', import.meta.url));
@@ -31,9 +32,9 @@ export async function doctor({ capture = true, render = true } = {}) {
       createCanvas(2, 2).getContext('2d');
     }, `Run npm ci in ${repository}.`);
     await check('ffmpeg', async () => {
-      const { stdout } = await run('ffmpeg', ['-hide_banner', '-encoders'], { timeout: 5000 });
+      const { stdout } = await run(ffmpeg, ['-hide_banner', '-encoders'], { timeout: 5000 });
       if (!/\blibx264\b/.test(stdout)) throw new Error('FFmpeg lacks libx264');
-    }, 'Install FFmpeg with the libx264 encoder and make it available on PATH.');
+    }, `Run npm ci in ${repository} to download FFmpeg, or put an FFmpeg with libx264 on PATH.`);
   }
   return { ready: checks.every(check => check.ok), repository, checks };
 }
