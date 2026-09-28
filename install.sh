@@ -53,13 +53,8 @@ for home in "${CLAUDE_CONFIG_DIR:-$HOME/.claude}" "${CODEX_HOME:-$HOME/.codex}";
   say "Linked skill: $target"
 done
 
-if ! command -v ffmpeg >/dev/null; then
-  case "$(uname -s)" in
-    Darwin) hint="brew install ffmpeg" ;;
-    *) hint="sudo apt install ffmpeg (or your system's package manager)" ;;
-  esac
-  warn "FFmpeg is missing, and exporting needs it: $hint"
-fi
+# FFmpeg comes with npm ci; doctor names anything that still failed to install.
+node "$dir/src/cli.mjs" doctor >/dev/null 2>&1 || warn "Setup is incomplete. See what is missing with: node $dir/src/cli.mjs doctor"
 
 say "Done. Try it: node $dir/src/cli.mjs record $dir/examples/demo.json --out /tmp/cutaway-demo"
 [ "$(uname -s)" = Darwin ] && say "Optional, for the macOS wallpapers: (cd $dir && npm run wallpapers)"

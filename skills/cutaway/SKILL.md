@@ -53,7 +53,7 @@ node <skill-directory>/scripts/run.mjs doctor
 node <skill-directory>/scripts/run.mjs validate /absolute/plan.json
 ```
 
-`doctor` returns readiness, the actual tool repository, and fixes for missing dependencies. It does not launch a browser, install packages or change the app. Install only missing requirements, in the tool repository reported by doctor: `npm ci` for missing packages, `npx playwright install chromium` for the missing browser; FFmpeg with libx264 must be on PATH. Do not reinstall dependencies on each invocation. `validate` checks JSON/schema only; it does not verify selectors or page state and is optional for unfamiliar plans.
+`doctor` returns readiness, the actual tool repository, and fixes for missing dependencies. It does not launch a browser, install packages or change the app. Install only missing requirements, in the tool repository reported by doctor: `npm ci` for missing packages, `npx playwright install chromium` for the missing browser. FFmpeg comes with `npm ci`; FFmpeg with libx264 on PATH is the fallback when that download fails. Do not reinstall dependencies on each invocation. `validate` checks JSON/schema only; it does not verify selectors or page state and is optional for unfamiliar plans.
 
 Capture and render are independent. If export fails after a successful capture, use the saved session instead of replaying actions:
 

@@ -49,7 +49,7 @@ No AI model, cloud service or upload is involved: Playwright drives Chromium, Sk
 
 ## 🚀 Quick start
 
-Requires **Node.js 22+** and **FFmpeg** (`brew install ffmpeg` on macOS).
+Requires **Node.js 22+**. Everything else, FFmpeg and Chromium included, comes with the install.
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/half144/cutaway/master/install.sh | bash
@@ -242,4 +242,4 @@ Tests don't judge how the video looks: watch the MP4. [`examples/extended-demo.j
 
 ## 📄 License
 
-[MIT](LICENSE). The macOS wallpapers imported by `npm run wallpapers` belong to Apple and are not covered by it.
+[MIT](LICENSE). FFmpeg is downloaded at install by [ffmpeg-static](https://github.com/eugeneware/ffmpeg-static) under its own license (GPL). The macOS wallpapers imported by `npm run wallpapers` belong to Apple and are not covered by it.

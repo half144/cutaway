@@ -9,6 +9,7 @@ import { homedir } from 'node:os';
 import { basename, extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
+import { ffmpeg } from '../src/ffmpeg.mjs';
 
 const run = promisify(execFile);
 const output = fileURLToPath(new URL('../assets/wallpapers/', import.meta.url));
@@ -92,7 +93,7 @@ for (const path of [...stills, ...videos]) {
   }
   if (extname(path).toLowerCase() === '.mov') {
     // The opening frame of a video wallpaper is its resting state.
-    await run('ffmpeg', ['-v', 'error', '-y', '-i', path, '-frames:v', '1', '-vf', 'scale=3840:-2', '-q:v', '2', target]);
+    await run(ffmpeg, ['-v', 'error', '-y', '-i', path, '-frames:v', '1', '-vf', 'scale=3840:-2', '-q:v', '2', target]);
   } else {
     const { width, height } = await dimensions(path);
     if (height > width || width < 2560) continue;
