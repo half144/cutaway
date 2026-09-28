@@ -29,12 +29,15 @@ export function stillGeometry({ viewport, scale, device }, { padding, window: wi
   };
 }
 
+// Tighter than a video's 0.09: a still has no zoom to leave room for.
+const framePadding = 0.05;
+
 // Frames a screenshot of the viewport like the video: a browser window on the wallpaper, or the phone.
 // A phone screenshot is the page between the system bars, at the phone's width.
 export async function frameImage(input, { url, device: name, scale, output, ...options } = {}) {
   const page = await loadImage(await readFile(input));
   const device = name === undefined ? undefined : mobileDevice(name);
-  const settings = renderSettings({ preset: framePreset, ...(device && { window: 'device' }), ...options });
+  const settings = renderSettings({ preset: framePreset, padding: framePadding, ...(device && { window: 'device' }), ...options });
   if (settings.window === 'device' && !device) throw new Error('--window device needs --device.');
   scale ??= device ? page.width / device.screen.width : 2;
   if (!Number.isFinite(scale) || scale < 1 || scale > 3) throw new Error('--scale must be between 1 and 3.');

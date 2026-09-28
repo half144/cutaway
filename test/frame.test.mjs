@@ -38,7 +38,7 @@ test('a web screenshot sits in the browser window on the wallpaper, without resa
   const input = await screenshot(dir, 2880, 1620);
   const output = await frameImage(input, { url: 'https://app.example.com/reports', preset: 'pearl' });
   assert.equal(output, join(dir, 'shot.framed.png'));
-  const { width, height, frame, ratio } = stillGeometry({ viewport: { width: 1440, height: 810 }, scale: 2 }, { padding: 0.09, window: 'browser' });
+  const { width, height, frame, ratio } = stillGeometry({ viewport: { width: 1440, height: 810 }, scale: 2 }, { padding: 0.05, window: 'browser' });
   assert.equal(ratio, 2);
   assert.ok(Number.isInteger(frame.x) && Number.isInteger(frame.y));
   const center = await pixel(output, frame.x + frame.width / 2, frame.y + frame.height / 2);
@@ -51,7 +51,7 @@ test('a web screenshot sits in the browser window on the wallpaper, without resa
 test('a phone screenshot is drawn inside the phone, at the phone scale', () => inTemp(async dir => {
   const device = mobileDevice('iPhone 15 Pro');
   const output = await frameImage(await screenshot(dir, 1179, 2292), { device: 'iPhone 15 Pro', preset: 'pearl' });
-  const { width, height, frame, window, ratio } = stillGeometry({ viewport: { width: 393, height: 764 }, scale: 3, device }, { padding: 0.09, window: 'device' });
+  const { width, height, frame, window, ratio } = stillGeometry({ viewport: { width: 393, height: 764 }, scale: 3, device }, { padding: 0.05, window: 'device' });
   assert.equal(ratio, 3);
   assert.ok(height > width && Number.isInteger(frame.x) && Number.isInteger(frame.y));
   const center = await pixel(output, frame.x + frame.width / 2, frame.y + frame.height / 2);

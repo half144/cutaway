@@ -4,7 +4,7 @@
 // the same Apple asset catalog System Settings uses (about 1.5 GB for all of them).
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { mkdir, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { basename, extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -17,7 +17,7 @@ const system = '/System/Library/Desktop Pictures';
 const force = process.argv.includes('--force');
 const catalog = 'https://mesu.apple.com/assets/macos/com_apple_MobileAsset_DesktopPicture/com_apple_MobileAsset_DesktopPicture.xml';
 const cache = join(homedir(), 'Library/Caches/cutaway/wallpapers');
-const darkWallpaper = fileURLToPath(new URL('./dark-wallpaper.swift', import.meta.url));
+const aerials = join(homedir(), 'Library/Application Support/com.apple.wallpaper/aerials');
 
 async function files(directory, pattern) {
   if (!existsSync(directory)) return [];
@@ -76,6 +76,16 @@ async function download() {
   return images;
 }
 
+// Aerials this Mac has downloaded, such as the one set as wallpaper. The videos are named by id; the
+// manifest System Settings reads gives their names (Sonoma Evening → sonoma-evening).
+async function aerialVideos() {
+  const manifest = join(aerials, 'manifest/entries.json');
+  if (!existsSync(manifest)) return [];
+  const { assets } = JSON.parse(await readFile(manifest, 'utf8'));
+  return assets.map(asset => ({ path: join(aerials, 'videos', `${asset.id}.mov`), name: slug(`${asset.accessibilityLabel}.mov`) }))
+    .filter(({ path }) => existsSync(path));
+}
+
 const stills = [
   ...process.argv.includes('--download') ? await download() : [],
   ...await files(system, /\.heic$/i),
@@ -85,8 +95,8 @@ const videos = await files(join(system, '.wallpapers'), /\.mov$/i);
 
 await mkdir(output, { recursive: true });
 const imported = [];
-for (const path of [...stills, ...videos]) {
-  const name = slug(path);
+const sources = [...[...stills, ...videos].map(path => ({ path, name: slug(path) })), ...await aerialVideos()];
+for (const { path, name } of sources) {
   const target = join(output, `${name}.jpg`);
   if (existsSync(target) && !force) {
     imported.push(name);
@@ -102,15 +112,4 @@ for (const path of [...stills, ...videos]) {
   }
   imported.push(name);
 }
-
-// A light/dark wallpaper such as Sonoma also gives its dark image, as <name>-night.
-const nights = stills.filter(path => imported.includes(slug(path)))
-  .map(path => ({ path, name: `${slug(path)}-night`, target: join(output, `${slug(path)}-night.jpg`) }));
-const pending = nights.filter(({ target }) => !existsSync(target) || force);
-if (pending.length) {
-  const { stdout } = await run('swift', [darkWallpaper, ...pending.flatMap(({ path, target }) => [path, target])]);
-  for (const target of stdout.split('\n').filter(Boolean)) await run('sips', ['-Z', '3840', target]);
-}
-imported.push(...nights.filter(({ target }) => existsSync(target)).map(({ name }) => name));
-
 console.log(`${imported.length} wallpapers in ${output}\n${imported.sort().join(', ')}`);
