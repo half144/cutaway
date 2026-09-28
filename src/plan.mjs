@@ -72,6 +72,7 @@ export function validatePlan(plan) {
       fail('name belongs to a snapshot step: letters, digits, _ and -, up to 60 characters.');
     }
     if (step.action === 'snapshot') {
+      if (step.selector !== undefined) fail('a snapshot frames the whole screen; remove selector.');
       if (snapshotNames.has(step.name)) fail(`another snapshot is already named "${step.name}".`);
       snapshotNames.add(step.name);
     }

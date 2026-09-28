@@ -1,6 +1,6 @@
 ---
 name: cutaway
-description: Record polished browser workflow demos with animated zoom, a smooth cursor, motion blur, and local MP4 export, or framed screenshots of a page area without video. Use for web UI demos, tutorials and still evidence for cards or PRs in one Chromium tab.
+description: Record polished browser workflow demos with animated zoom, a smooth cursor, motion blur, and local MP4 export, or framed screenshots without video. Use for web UI demos, tutorials and still evidence for cards or PRs in one Chromium tab.
 ---
 
 # Cutaway
@@ -48,7 +48,7 @@ When a still is enough (card or ticket evidence, a PR picture of a result), add 
 node <skill-directory>/scripts/run.mjs snap /absolute/plan.json --out /absolute/new-directory
 ```
 
-`{ "action": "snapshot", "selector": "#result", "name": "saved" }` saves `snapshots/saved.png`: the element plus a 16 px margin, framed in the browser window on the wallpaper, at 2×. Leave out `selector` for the whole viewport; `name` (letters, digits, `_`, `-`) defaults to `step-N`. Put the snapshot after the step whose `expect` shows the result, so the state is settled. `snap` records no video and needs no FFmpeg; the result JSON lists `snapshots`. `render <directory> --preset <name>` or `--window none` frames them again without repeating the steps. `record` also saves snapshots in its plan. Deliver the framed PNGs with their absolute paths.
+`{ "action": "snapshot", "name": "saved" }` saves `snapshots/saved.png`: the whole screen, framed as in the video (browser window on the wallpaper, or the drawn phone for a `device` plan), at full capture resolution. It takes no selector. `name` (letters, digits, `_`, `-`) defaults to `step-N`. Put the snapshot after the step whose `expect` shows the result, so the state is settled. `snap` records no video and needs no FFmpeg; the result JSON lists `snapshots`. `render <directory> --preset <name>`, `--padding` or `--window none` frames them again without repeating the steps. `record` also saves snapshots in its plan. Deliver the framed PNGs with their absolute paths.
 
 ## Phones
 

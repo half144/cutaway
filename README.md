@@ -123,7 +123,7 @@ Selectors are [Playwright locators](https://playwright.dev/docs/other-locators):
 | `scroll` | `y`, `duration` | Relative scroll in pixels: starts fast and glides to a stop |
 | `press` | `key` | A key or shortcut on the focused element (`Enter`, `ControlOrMeta+K`) |
 | `wait` | `duration` | Pause in seconds |
-| `snapshot` | `selector` (optional), `name` | Saves a framed image of that element, or of the whole page; see [Snapshots](#-snapshots) |
+| `snapshot` | `name` | Saves a framed image of the whole screen; see [Snapshots](#-snapshots) |
 
 ### Step options
 
@@ -151,27 +151,28 @@ Ambiguous selectors, missing elements and unmet expectations stop the recording,
 
 ## 📸 Snapshots
 
-A still is enough for most card evidence. `snap` runs the plan without recording video and frames each `snapshot` step like the video's window: wallpaper, browser chrome with the page's address, rounded corners and shadow.
+A still is enough for most card evidence. `snap` runs the plan without recording video and frames the screen at each `snapshot` step as the video would: wallpaper, browser window with the page's address and shadow, or the drawn iPhone for a phone `device`.
 
 ```json
 {
   "url": "http://localhost:3000",
   "steps": [
     { "action": "click", "selector": "#save", "expect": "#saved-message" },
-    { "action": "snapshot", "selector": "#saved-message", "name": "saved" },
-    { "action": "snapshot", "name": "page" }
+    { "action": "snapshot", "name": "saved" }
   ]
 }
 ```
 
 ```sh
-node src/cli.mjs snap plan.json --out recordings/card-123   # → snapshots/saved.png, snapshots/page.png
+node src/cli.mjs snap plan.json --out recordings/card-123   # → recordings/card-123/snapshots/saved.png
 node src/cli.mjs render recordings/card-123 --preset pearl  # frames them again, without repeating the steps
 ```
 
-- **Area:** the element plus a 16 px margin, cut at the edge of the viewport; without `selector`, the whole viewport. The image is sized to that area at the capture scale (2×), with a wallpaper border around it.
-- **Look:** `--preset` and `--window browser|none` apply as in videos. Areas narrower than 480 px keep the traffic lights and drop the address. On phones the screen is rounded, without a drawn device.
-- **In a video:** `record` saves the snapshots of its plan too, next to `video.mp4`. `snapshots/source/` keeps the unframed crops.
+- **Size:** the page keeps every captured pixel (2×, 3× on phones), with an even wallpaper border set by `--padding`.
+- **Look:** `--preset`, `--padding` and `--window` apply as in videos; `--window none` leaves the page alone with rounded corners.
+- **In a video:** `record` saves the snapshots of its plan too, next to `video.mp4`. `snapshots/source/` keeps the unframed screens.
+
+Examples on the shadcn dashboard: [`examples/web-dashboard-snapshots.json`](examples/web-dashboard-snapshots.json) and [`examples/web-dashboard-mobile-snapshots.json`](examples/web-dashboard-mobile-snapshots.json).
 
 ## 📱 Phones
 
@@ -232,7 +233,7 @@ node src/cli.mjs render recordings/take --preset midnight --zoom 2       # anoth
 | File | Contents |
 | --- | --- |
 | `video.mp4` | The finished video |
-| `snapshots/*.png` | Framed snapshots; `snapshots/source/` has the plain crops |
+| `snapshots/*.png` | Framed snapshots; `snapshots/source/` has the plain screens |
 | `poster.png` | A frame from the middle, for a quick look |
 | `frames/*.png` | Lossless source frames |
 | `timeline.json` | Timestamps, cursor, clicks, focus regions and status |

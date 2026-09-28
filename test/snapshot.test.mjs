@@ -5,19 +5,18 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createCanvas, loadImage } from '@napi-rs/canvas';
 import { validatePlan } from '../src/plan.mjs';
-import { frameSnapshots, snapshotLayout } from '../src/render/snapshot.mjs';
+import { frameSnapshots, snapshotGeometry } from '../src/render/snapshot.mjs';
 
 const base = { url: 'https://example.com' };
 
-test('snapshots take an optional selector and a unique file name', () => {
-  const steps = validatePlan({ ...base, steps: [
-    { action: 'wait' }, { action: 'snapshot' }, { action: 'snapshot', selector: '#card', name: 'saved-card' },
-  ] }).steps;
+test('a snapshot frames the whole screen, under a unique file name', () => {
+  const steps = validatePlan({ ...base, steps: [{ action: 'wait' }, { action: 'snapshot' }, { action: 'snapshot', name: 'saved-card' }] }).steps;
   assert.deepEqual(steps.slice(1).map(step => step.name), ['step-2', 'saved-card']);
   for (const name of ['', '../escape', 'a b', 7]) {
     assert.throws(() => validatePlan({ ...base, steps: [{ action: 'snapshot', name }] }), /name belongs/);
   }
   assert.throws(() => validatePlan({ ...base, steps: [{ action: 'click', selector: '#a', name: 'a' }] }), /name belongs/);
+  assert.throws(() => validatePlan({ ...base, steps: [{ action: 'snapshot', selector: '#card' }] }), /whole screen/);
   assert.throws(() => validatePlan({ ...base, steps: [{ action: 'snapshot', name: 'a' }, { action: 'snapshot', name: 'a' }] }),
     /Step 2: another snapshot is already named "a"/);
 });
@@ -38,29 +37,50 @@ async function pixel(file, x, y) {
   return { width: image.width, height: image.height, rgb: [...context.getImageData(x, y, 1, 1).data.slice(0, 3)] };
 }
 
-test('a snapshot is framed in a window on the wallpaper, sized to its area', async () => {
+async function capture(timeline, width, height) {
   const dir = await mkdtemp(join(tmpdir(), 'cutaway-test-'));
+  await mkdir(join(dir, 'frames'));
+  await mkdir(join(dir, 'snapshots', 'source'), { recursive: true });
+  await writeFile(join(dir, 'frames', '000000.png'), await png(64, 36, '#ffffff'));
+  await writeFile(join(dir, 'snapshots', 'source', 'page.png'), await png(width, height, '#ff0000'));
+  await writeFile(join(dir, 'timeline.json'), JSON.stringify({
+    url: 'https://app.example.com/', frames: [{ t: 0, file: 'frames/000000.png' }],
+    snapshots: [{ t: 1, name: 'page', source: 'snapshots/source/page.png' }], ...timeline,
+  }));
+  return dir;
+}
+
+test('a web snapshot sits in the browser window on the wallpaper, at the capture scale', async () => {
+  const timeline = { viewport: { width: 1440, height: 810 }, capture: { scale: 2 } };
+  const dir = await capture(timeline, 2880, 1620);
   try {
-    const clip = { x: 10, y: 20, width: 600, height: 300 };
-    await mkdir(join(dir, 'frames'));
-    await mkdir(join(dir, 'snapshots', 'source'), { recursive: true });
-    await writeFile(join(dir, 'frames', '000000.png'), await png(64, 36, '#ffffff'));
-    await writeFile(join(dir, 'snapshots', 'source', 'card.png'), await png(1200, 600, '#ff0000'));
-    await writeFile(join(dir, 'timeline.json'), JSON.stringify({
-      url: 'https://app.example.com/', capture: { scale: 2 }, frames: [{ t: 0, file: 'frames/000000.png' }],
-      snapshots: [{ t: 1, name: 'card', source: 'snapshots/source/card.png', clip }],
-    }));
-
     const [output] = await frameSnapshots(dir, { preset: 'pearl' });
-    const layout = snapshotLayout(clip, 2, true);
-    const center = await pixel(output, layout.frame.x + layout.frame.width / 2, layout.frame.y + layout.frame.height / 2);
-    assert.deepEqual([center.width, center.height], [layout.width, layout.height]);
-    assert.deepEqual(center.rgb, [255, 0, 0]);
+    const { width, height, frame, ratio } = snapshotGeometry(timeline, { padding: 0.09, window: 'browser' });
+    assert.equal(ratio, 2);
+    assert.ok(Number.isInteger(frame.x) && Number.isInteger(frame.y));
+    const center = await pixel(output, frame.x + frame.width / 2, frame.y + frame.height / 2);
+    assert.deepEqual([center.width, center.height, center.rgb], [width, height, [255, 0, 0]]);
     assert.notDeepEqual((await pixel(output, 2, 2)).rgb, [255, 0, 0]);
+    await assert.rejects(frameSnapshots(dir, { window: 'device' }), /needs a capture made with a phone/);
+  } finally {
+    await rm(dir, { recursive: true });
+  }
+});
 
-    await frameSnapshots(dir, { preset: 'pearl', window: 'none' });
-    assert.equal((await pixel(output, 0, 0)).height, snapshotLayout(clip, 2, false).height);
-    assert.ok(snapshotLayout(clip, 2, false).height < layout.height);
+test('a phone snapshot is drawn inside the phone', async () => {
+  const device = validatePlan({ ...base, device: 'iPhone 15 Pro', steps: [{ action: 'snapshot' }] }).device;
+  const timeline = { viewport: { width: 393, height: 764 }, capture: { scale: 3 }, device };
+  const dir = await capture(timeline, 1179, 2292);
+  try {
+    const [output] = await frameSnapshots(dir, { preset: 'pearl' });
+    const { width, height, frame, window, ratio } = snapshotGeometry(timeline, { padding: 0.09, window: 'device' });
+    assert.equal(ratio, 3);
+    assert.ok(Number.isInteger(frame.x) && Number.isInteger(frame.y));
+    assert.ok(height > width);
+    const center = await pixel(output, frame.x + frame.width / 2, frame.y + frame.height / 2);
+    assert.deepEqual([center.width, center.height, center.rgb], [width, height, [255, 0, 0]]);
+    // The bezel between the glass and the body's edge.
+    assert.notDeepEqual((await pixel(output, window.x + 6 * ratio, window.y + window.height / 2)).rgb, [255, 0, 0]);
   } finally {
     await rm(dir, { recursive: true });
   }

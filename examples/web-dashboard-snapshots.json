@@ -4,10 +4,8 @@
   "steps": [
     { "action": "type", "selector": "[id=\"1-target\"]", "text": "24" },
     { "action": "press", "key": "Enter", "expect": "[data-sonner-toast]" },
-    { "action": "snapshot", "selector": "[data-sonner-toast]", "name": "toast" },
+    { "action": "snapshot", "name": "target-saved" },
     { "action": "click", "selector": "role=button[name=\"Innovation and Advantages\"]", "expect": "role=dialog" },
-    { "action": "snapshot", "selector": "role=dialog", "name": "section-editor" },
-    { "action": "press", "key": "Escape" },
-    { "action": "snapshot", "name": "dashboard" }
+    { "action": "snapshot", "name": "section-editor" }
   ]
 }

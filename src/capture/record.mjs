@@ -6,7 +6,6 @@ import { loadPlan } from '../plan.mjs';
 import { ActionRunner } from './actions.mjs';
 import { hideElements, invalidSelectors, isQuietSpot, waitForSettled, watchChanges } from './page-state.mjs';
 import { ScreencastRecorder } from './screencast.mjs';
-import { takeSnapshot } from './snapshot.mjs';
 import { TouchRunner } from './touch.mjs';
 
 // Where the pointer waits before the first gesture: a spot that reacts to nothing on hover.
@@ -34,6 +33,16 @@ function createTimeline(viewport) {
     duration: 0,
     status: 'recording',
   };
+}
+
+// The whole screen once it settles; the render frames it like the video's window or phone.
+async function takeSnapshot(page, step, directory, timeline, now) {
+  await page.evaluate(watchChanges);
+  await page.evaluate(waitForSettled, { limit: 1500 });
+  const source = `snapshots/source/${step.name}.png`;
+  await mkdir(join(directory, 'snapshots', 'source'), { recursive: true });
+  await page.screenshot({ path: join(directory, source) });
+  (timeline.snapshots ??= []).push({ t: now(), name: step.name, source });
 }
 
 // Without video, only the snapshots are kept: no screencast and no opening or closing beat.
@@ -118,7 +127,7 @@ export async function record(planPath, directory, { headed = false, storageState
       process.stderr.write(`Recording ${index + 1}/${plan.steps.length}: ${step.action}\n`);
       const recordStep = { action: step.action, start: now() };
       timeline.steps.push(recordStep);
-      if (step.action === 'snapshot') await takeSnapshot(page, step, index, directory, timeline, now);
+      if (step.action === 'snapshot') await takeSnapshot(page, step, directory, timeline, now);
       else Object.assign(recordStep, await actions.run(step, index, plan.steps[index + 1]));
       recordStep.end = now();
     }

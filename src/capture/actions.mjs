@@ -74,7 +74,7 @@ export class ActionRunner {
 
   // Where the next step will land, if its target is already on screen without scrolling.
   async upcomingTarget(step, index) {
-    if (!step?.selector || step.action === 'focus' || step.action === 'snapshot') return null;
+    if (!step?.selector || step.action === 'focus') return null;
     try {
       const locator = this.page.locator(step.selector);
       if (await locator.count() !== 1) return null;
