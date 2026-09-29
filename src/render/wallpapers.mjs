@@ -21,3 +21,5 @@ export const backgrounds = {
 
 // Sonoma Horizon at dusk once imported; the bundled wallpaper otherwise.
 export const defaultPreset = backgrounds['sonoma-horizon'] ? 'sonoma-horizon' : 'macos';
+// Screenshots sit on the Sonoma Evening aerial once imported.
+export const framePreset = backgrounds['sonoma-evening'] ? 'sonoma-evening' : defaultPreset;

@@ -38,7 +38,7 @@ https://github.com/user-attachments/assets/2c80b028-ebcc-45d9-8aaf-a642d342df32
 
 - **A camera that follows the action.** Screen Studio-style zoom on typing, menus and small results; the overview for anything that fills the screen.
 - **A cursor that moves like a person.** Arcs, Fitts' law timing, varied pauses and a click that presses in.
-- **A finished scene.** Wallpaper, browser window with traffic lights, shadow, motion blur and a shortcut pill.
+- **A finished scene.** Wallpaper, a Safari-style browser window, shadow, motion blur and a shortcut pill.
 - **Honest timing.** Dead time is sped up; clicks, typing and results play at real speed.
 - **Phones too.** Touch input, a drawn device, status bar and on-screen keyboard.
 - **Stills too.** `frame` gives any screenshot the same window or phone, for evidence that needs no video. See [Screenshots](#-screenshots).
@@ -201,7 +201,7 @@ node src/cli.mjs render recordings/take --preset midnight --zoom 2       # anoth
 > [!TIP]
 > For PR evidence and bug repros, `--width 1280 --height 720 --quality standard` exports about 3× faster and keeps ~30 s under GitHub's 10 MB attachment limit.
 
-**More wallpapers:** `npm run wallpapers` converts the macOS wallpapers on this Mac to presets (`--preset tahoe-day`); add `--download` to `node scripts/import-wallpapers.mjs` for the ones macOS fetches on demand. They stay out of git, since they belong to Apple.
+**More wallpapers:** `npm run wallpapers` converts the macOS wallpapers on this Mac to presets (`--preset tahoe-day`); add `--download` to `node scripts/import-wallpapers.mjs` for the ones macOS fetches on demand. Aerials you downloaded in System Settings come in too, by name, such as `sonoma-evening`. They stay out of git, since they belong to Apple.
 
 ### Session files
 
@@ -235,7 +235,7 @@ node src/cli.mjs frame /tmp/reports.png --url https://app.example.com/reports   
 | `--scale` | `2` (the phone's width on phones) | Pixels per page pixel in the screenshot |
 | `--output` | `<screenshot>.framed.png` | Any path |
 
-`--preset`, `--padding` and `--window` work as in [Export](#-export). The page is never resampled: the image is the screenshot plus its window and an even border of wallpaper.
+The wallpaper is the Sonoma Evening aerial (`sonoma-evening`) once imported, and the video's default otherwise. Padding is `0.05`, tighter than a video's. `--preset`, `--padding` and `--window` work as in [Export](#-export). The page is never resampled: the image is the screenshot plus its window and an even border of wallpaper.
 
 ## 🚧 Limits
 

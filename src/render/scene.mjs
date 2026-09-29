@@ -1,10 +1,12 @@
 import { createCanvas } from '@napi-rs/canvas';
 import { drawCursor } from './cursor-art.mjs';
 import { drawScreen } from './device.mjs';
-import { drawToolbar } from './toolbar.mjs';
+import { drawToolbar, drawWindowEdge } from './toolbar.mjs';
 import { drawTouches, touchRadius } from './touch.mjs';
 
-const windowRadius = 12;
+// macOS Tahoe rounds windows with a toolbar, such as Safari, to 26 pt (16 pt with a title bar only).
+// A 26 pt arc fits Apple's own Safari image within 0.12 px; the continuous curve fits worse.
+const windowRadius = 26;
 
 export function createFrame(width, height, viewport, padding, toolbar = 0) {
   const ratio = Math.min(width * (1 - padding * 2) / viewport.width,
@@ -63,6 +65,7 @@ function drawPage(context, sample) {
     clipFrame(context, frame);
     context.drawImage(source, frame.x, frame.y, frame.width, frame.height);
     context.restore();
+    if (toolbar) drawWindowEdge(context, frame, toolbar);
   }
   context.restore();
 }
