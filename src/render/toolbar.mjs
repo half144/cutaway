@@ -45,7 +45,7 @@ function polyline(context, points) {
 
 // Each icon at its measured place: `at(x, y)` maps toolbar points to canvas pixels.
 function drawIcons(context, at, width, unit, theme, addressLeft, addressRight) {
-  context.lineWidth = 1.4 * unit;
+  context.lineWidth = 1.5 * unit;
   context.lineCap = 'round';
   context.lineJoin = 'round';
   context.strokeStyle = theme.ink;
@@ -57,9 +57,12 @@ function drawIcons(context, at, width, unit, theme, addressLeft, addressRight) {
   };
 
   // Sidebar, with its menu chevron.
-  box(105, middle - 7.5, 19, 15, 3.5);
-  polyline(context, [at(111.5, middle - 7.5), at(111.5, middle + 7.5)]);
+  box(105.5, middle - 6.8, 18.5, 13.6, 3.5);
+  polyline(context, [at(111.5, middle - 6.8), at(111.5, middle + 6.8)]);
+  context.save();
+  context.lineWidth = unit;
   for (const y of [-4, -1.5, 1]) polyline(context, [at(107.3, middle + y), at(109.3, middle + y)]);
+  context.restore();
   polyline(context, [at(139.5, middle - 2), at(143.5, middle + 2), at(147.5, middle - 2)]);
   // Back, divider, and forward (dimmed: there is no forward history).
   polyline(context, [at(191.5, middle - 7), at(184.5, middle), at(191.5, middle + 7)]);
@@ -69,32 +72,44 @@ function drawIcons(context, at, width, unit, theme, addressLeft, addressRight) {
   polyline(context, [at(207.5, middle - 10), at(207.5, middle + 10)]);
   context.globalAlpha = 0.35;
   context.strokeStyle = theme.ink;
-  context.lineWidth = 1.4 * unit;
+  context.lineWidth = 1.5 * unit;
   polyline(context, [at(223.5, middle - 7), at(230.5, middle), at(223.5, middle + 7)]);
   context.restore();
 
   if (addressRight - addressLeft > 120) {
-    // Page menu at the start of the address field, reload at its end.
-    box(addressLeft + 9.5, middle - 8, 11, 7, 2);
-    polyline(context, [at(addressLeft + 9.5, middle + 2), at(addressLeft + 20.5, middle + 2)]);
-    polyline(context, [at(addressLeft + 9.5, middle + 5.5), at(addressLeft + 17, middle + 5.5)]);
-    const [cx, cy] = at(addressRight - 14, middle + 0.5);
+    // Page menu at the start of the address field, reload at its end, drawn finer than the others.
+    context.save();
+    context.lineWidth = unit;
+    box(addressLeft + 11.5, middle - 5.5, 10.5, 6.5, 1.8);
+    polyline(context, [at(addressLeft + 11.5, middle + 3.5), at(addressLeft + 22, middle + 3.5)]);
+    polyline(context, [at(addressLeft + 11.5, middle + 6.5), at(addressLeft + 18.5, middle + 6.5)]);
+    const [cx, cy] = at(addressRight - 14, middle + 1.8);
     context.beginPath();
-    context.arc(cx, cy, 5.3 * unit, -Math.PI * 0.35, Math.PI * 1.35);
+    context.arc(cx, cy, 5 * unit, -Math.PI * 0.35, Math.PI * 1.35);
     context.stroke();
-    polyline(context, [at(addressRight - 14.5, middle - 7.5), at(addressRight - 11.6, middle - 4.8), at(addressRight - 14.5, middle - 2.3)]);
+    polyline(context, [at(addressRight - 14.5, middle - 5.7), at(addressRight - 11.8, middle - 3.2), at(addressRight - 14.5, middle - 0.9)]);
+    context.restore();
   }
 
-  // Share, new tab and tab overview.
+  // Share, new tab and tab overview. The share box opens around its arrow, and the front tab hides a
+  // corner of the one behind: both are cut out of the stroke with an even-odd clip.
   const right = width - 118;
-  polyline(context, [at(right + 13, middle - 2), at(right + 11, middle - 2), at(right + 11, middle + 9), at(right + 24, middle + 9),
-    at(right + 24, middle - 2), at(right + 22, middle - 2)]);
-  polyline(context, [at(right + 17.5, middle + 3), at(right + 17.5, middle - 9)]);
-  polyline(context, [at(right + 13.5, middle - 5.5), at(right + 17.5, middle - 9.5), at(right + 21.5, middle - 5.5)]);
-  polyline(context, [at(right + 47, middle), at(right + 59, middle)]);
-  polyline(context, [at(right + 53, middle - 6), at(right + 53, middle + 6)]);
-  box(right + 85.5, middle - 4, 12.5, 12.5, 3);
-  polyline(context, [at(right + 81.5, middle + 3.5), at(right + 81.5, middle - 5.5), at(right + 84.5, middle - 8.5), at(right + 92, middle - 8.5)]);
+  const without = (x, y, w, h, radius, draw) => {
+    context.save();
+    context.beginPath();
+    context.rect(...at(right, 0), 118 * unit, toolbarHeight * unit);
+    context.roundRect(...at(right + x, middle + y), w * unit, h * unit, radius * unit);
+    context.clip('evenodd');
+    draw();
+    context.restore();
+  };
+  without(15.6, -4, 6.3, 4, 0, () => box(right + 12.2, middle - 1.8, 13.1, 9.8, 3));
+  polyline(context, [at(right + 18.75, middle + 3), at(right + 18.75, middle - 9.2)]);
+  polyline(context, [at(right + 15.6, middle - 6.1), at(right + 18.75, middle - 9.3), at(right + 21.9, middle - 6.1)]);
+  polyline(context, [at(right + 47.75, middle), at(right + 59.75, middle)]);
+  polyline(context, [at(right + 53.75, middle - 6), at(right + 53.75, middle + 6)]);
+  without(84.6, -5.4, 15.9, 15.6, 5, () => box(right + 82.3, middle - 8, 11.5, 11.2, 3));
+  box(right + 86.8, middle - 3.2, 11.5, 11.2, 3);
 }
 
 export function drawToolbar(context, frame, toolbar) {
@@ -104,8 +119,8 @@ export function drawToolbar(context, frame, toolbar) {
   const width = frame.width / unit;
   const at = (x, y) => [frame.x + x * unit, top + y * unit];
   const theme = dark
-    ? { fill: '#ffffff17', border: '#ffffff2b', ink: '#e8e8e8', text: '#ffffff' }
-    : { fill: '#0000000a', border: '#00000017', ink: '#3a3a3c', text: '#1d1d1f' };
+    ? { fill: '#ffffff17', border: '#ffffff2b', ink: '#dcdcdc', text: '#ffffff' }
+    : { fill: '#0000000f', border: '#00000014', ink: '#3a3a3c', text: '#1d1d1f' };
   const y = top + middle * unit;
   context.save();
   context.beginPath();
@@ -132,7 +147,7 @@ export function drawToolbar(context, frame, toolbar) {
   drawIcons(context, at, width, unit, theme, addressLeft, addressLeft + field);
 
   if (host && field > 120) {
-    context.font = `500 ${14 * unit}px ${systemFont}`;
+    context.font = `500 ${14.5 * unit}px ${systemFont}`;
     context.textAlign = 'center';
     context.textBaseline = 'alphabetic';
     context.fillStyle = theme.text;
