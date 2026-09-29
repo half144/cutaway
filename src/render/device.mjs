@@ -118,16 +118,17 @@ function edges(source) {
   return edgeCache.get(source);
 }
 
-function drawSignal(context, x, y, unit) {
-  [4, 6.2, 8.4, 10.6].forEach((height, index) => {
+// Status bar glyphs in points, measured on an iOS 17 screenshot: they stand on the text's baseline.
+function drawSignal(context, x, bottom, unit) {
+  [4.9, 7.3, 9.7, 12.1].forEach((height, index) => {
     context.beginPath();
-    context.roundRect(x + index * 4.6 * unit, y + (5.3 - height) * unit, 3.2 * unit, height * unit, 1 * unit);
+    context.roundRect(x + index * 5.4 * unit, bottom - height * unit, 3.4 * unit, height * unit, 1 * unit);
     context.fill();
   });
 }
 
-function drawWifi(context, x, y, unit) {
-  const center = { x: x + 7.7 * unit, y: y + 5.3 * unit };
+function drawWifi(context, x, bottom, unit) {
+  const center = { x: x + 7.7 * unit, y: bottom };
   context.beginPath();
   context.moveTo(center.x, center.y);
   context.arc(center.x, center.y, 3.6 * unit, -Math.PI * 0.75, -Math.PI * 0.25);
@@ -141,7 +142,8 @@ function drawWifi(context, x, y, unit) {
   }
 }
 
-function drawBattery(context, x, y, unit, ink) {
+function drawBattery(context, x, bottom, unit, ink) {
+  const y = bottom - 6 * unit;
   context.save();
   context.globalAlpha *= 0.4;
   context.lineWidth = 1 * unit;
@@ -158,37 +160,43 @@ function drawBattery(context, x, y, unit, ink) {
   context.fill();
 }
 
+const glyphWidths = { signal: 19.6, wifi: 15.4, battery: 27.2 };
+
 function drawStatusBar(context, screen, layout, unit, ink) {
   const { kind, model } = layout;
   context.save();
   context.fillStyle = ink;
   context.strokeStyle = ink;
-  context.textBaseline = 'middle';
   if (kind === 'iphone') {
-    const middle = screen.y + (model.island.top + model.island.height / 2) * unit;
+    // iOS centers the time and the icons in the two ears beside the Dynamic Island, on a shared
+    // baseline 32.4 pt from the top of the screen.
+    const baseline = screen.y + 32.4 * unit;
     const ear = (screen.width - model.island.width * unit) / 2;
-    context.font = `600 ${17 * unit}px ${uiFont}`;
+    context.font = `600 ${17 * unit}px "System Font", ${uiFont}`;
     context.textAlign = 'center';
-    context.fillText('9:41', screen.x + ear / 2 + 4 * unit, middle);
-    // Signal, Wi-Fi and battery, centered in the right ear.
-    const groupWidth = 76 * unit;
-    let x = screen.x + screen.width - ear / 2 - groupWidth / 2 - 4 * unit;
-    drawSignal(context, x, middle, unit);
-    x += 20 * unit;
-    drawWifi(context, x, middle - 1 * unit, unit);
-    x += 22 * unit;
-    drawBattery(context, x, middle, unit, ink);
+    context.textBaseline = 'alphabetic';
+    context.fillText('9:41', screen.x + ear / 2 - 2.4 * unit, baseline);
+    const gap = 5.2;
+    const groupWidth = (glyphWidths.signal + glyphWidths.wifi + glyphWidths.battery + gap * 2) * unit;
+    let x = screen.x + screen.width - ear / 2 - groupWidth / 2;
+    drawSignal(context, x, baseline, unit);
+    x += (glyphWidths.signal + gap) * unit;
+    drawWifi(context, x, baseline, unit);
+    x += (glyphWidths.wifi + gap) * unit;
+    drawBattery(context, x, baseline, unit, ink);
   } else {
     const middle = screen.y + model.camera.top * unit;
     context.font = `500 ${14.5 * unit}px ${uiFont}`;
     context.textAlign = 'left';
+    context.textBaseline = 'middle';
     context.fillText('9:41', screen.x + 24 * unit, middle);
+    const bottom = middle + 5.5 * unit;
     let x = screen.x + screen.width - 76 * unit;
-    drawWifi(context, x, middle - 1 * unit, unit);
+    drawWifi(context, x, bottom, unit);
     x += 20 * unit;
-    drawSignal(context, x, middle, unit);
-    x += 22 * unit;
-    drawBattery(context, x, middle, unit, ink);
+    drawSignal(context, x, bottom, unit);
+    x += 24.6 * unit;
+    drawBattery(context, x, bottom, unit, ink);
   }
   context.restore();
 }
