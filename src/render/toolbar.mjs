@@ -112,6 +112,34 @@ function drawIcons(context, at, width, unit, theme, addressLeft, addressRight) {
   box(right + 86.8, middle - 3.2, 11.5, 11.2, 3);
 }
 
+// The edge every macOS window has, measured on Safari: in dark mode a black hairline outside and a
+// 1 pt light rim inside, brightest along the top (white at ~35%, ~20% down the sides); in light mode
+// a faint dark hairline. Without it the window reads as a rectangle pasted on the wallpaper.
+export function drawWindowEdge(context, frame, toolbar) {
+  const unit = frame.toolbar / toolbarHeight;
+  const x = frame.x, y = frame.y - frame.toolbar, width = frame.width, height = frame.height + frame.toolbar;
+  const outline = (inset, radius) => {
+    context.beginPath();
+    context.roundRect(x + inset, y + inset, width - inset * 2, height - inset * 2, radius);
+    context.stroke();
+  };
+  context.save();
+  context.lineWidth = 0.5 * unit;
+  context.strokeStyle = toolbar.dark ? '#000000a6' : '#0000001f';
+  outline(-0.25 * unit, frame.radius + 0.25 * unit);
+  if (toolbar.dark) {
+    const rim = context.createLinearGradient(0, y, 0, y + height);
+    rim.addColorStop(0, '#ffffff5c');
+    rim.addColorStop(Math.min(1, 3 * unit / height), '#ffffff38');
+    rim.addColorStop(Math.min(1, 40 * unit / height), '#ffffff2e');
+    rim.addColorStop(1, '#ffffff24');
+    context.lineWidth = unit;
+    context.strokeStyle = rim;
+    outline(0.5 * unit, frame.radius - 0.5 * unit);
+  }
+  context.restore();
+}
+
 export function drawToolbar(context, frame, toolbar) {
   const { color, dark, host } = toolbar;
   const unit = frame.toolbar / toolbarHeight;

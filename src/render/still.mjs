@@ -5,7 +5,7 @@ import { backgrounds, createBackdrop } from './background.mjs';
 import { createDeviceFrame, deviceLayout, drawScreen } from './device.mjs';
 import { createFrame } from './scene.mjs';
 import { renderSettings } from './settings.mjs';
-import { drawToolbar, toolbarHeight, toolbarStyle } from './toolbar.mjs';
+import { drawToolbar, drawWindowEdge, toolbarHeight, toolbarStyle } from './toolbar.mjs';
 import { framePreset } from './wallpapers.mjs';
 
 // The video's window (or phone) at exactly the screenshot's scale, so the page keeps every pixel,
@@ -65,10 +65,13 @@ export async function frameImage(input, { url, device: name, scale, output, ...o
   } else {
     const toolbar = settings.window === 'browser' ? await toolbarStyle(input, url) : null;
     if (toolbar) drawToolbar(context, frame, toolbar);
+    context.save();
     context.beginPath();
     context.roundRect(frame.x, frame.y, frame.width, frame.height, toolbar ? [0, 0, frame.radius, frame.radius] : frame.radius);
     context.clip();
     context.drawImage(page, frame.x, frame.y, frame.width, frame.height);
+    context.restore();
+    if (toolbar) drawWindowEdge(context, frame, toolbar);
   }
   const path = output ?? input.replace(/(\.[^./]+)?$/, '.framed.png');
   await writeFile(path, await canvas.encode('png'));

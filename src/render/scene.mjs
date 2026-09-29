@@ -1,7 +1,7 @@
 import { createCanvas } from '@napi-rs/canvas';
 import { drawCursor } from './cursor-art.mjs';
 import { drawScreen } from './device.mjs';
-import { drawToolbar } from './toolbar.mjs';
+import { drawToolbar, drawWindowEdge } from './toolbar.mjs';
 import { drawTouches, touchRadius } from './touch.mjs';
 
 // macOS Tahoe rounds windows with a toolbar, such as Safari, to 26 pt (16 pt with a title bar only).
@@ -65,6 +65,7 @@ function drawPage(context, sample) {
     clipFrame(context, frame);
     context.drawImage(source, frame.x, frame.y, frame.width, frame.height);
     context.restore();
+    if (toolbar) drawWindowEdge(context, frame, toolbar);
   }
   context.restore();
 }
