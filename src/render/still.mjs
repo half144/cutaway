@@ -31,6 +31,12 @@ export function stillGeometry({ viewport, scale, device }, { padding, window: wi
 
 // Tighter than a video's 0.09: a still has no zoom to leave room for.
 const framePadding = 0.05;
+// A light shadow that gathers under the window, as Screen Studio's stills do (1080p pixels, like the
+// video's): about 20% darker at the bottom edge, gone within 48 page pixels, faint at the sides.
+const windowShadows = [
+  { offset: 16, blur: 30, color: '#00000080' },
+  { offset: 2, blur: 6, color: '#00000033' },
+];
 
 // Frames a screenshot of the viewport like the video: a browser window on the wallpaper, or the phone.
 // A phone screenshot is the page between the system bars, at the phone's width.
@@ -53,7 +59,7 @@ export async function frameImage(input, { url, device: name, scale, output, ...o
   const { width, height, window, frame, layout } = stillGeometry({ viewport, scale, device }, settings);
   const canvas = createCanvas(width, height);
   const context = canvas.getContext('2d');
-  context.drawImage(await createBackdrop(width, height, window, backgrounds[settings.preset], layout), 0, 0);
+  context.drawImage(await createBackdrop(width, height, window, backgrounds[settings.preset], layout, layout ? undefined : windowShadows), 0, 0);
   if (layout) {
     drawScreen(context, { source: page, frame, device: layout });
   } else {

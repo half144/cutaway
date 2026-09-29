@@ -12,7 +12,7 @@ const shadows = [
 ];
 
 // A phone's body is drawn here too: it sits still in the scene, like the wallpaper.
-export async function createBackdrop(width, height, window, preset, device) {
+export async function createBackdrop(width, height, window, preset, device, layers = shadows) {
   const canvas = createCanvas(width, height);
   const context = canvas.getContext('2d');
 
@@ -40,7 +40,7 @@ export async function createBackdrop(width, height, window, preset, device) {
   const unit = height / 1080;
   const away = width * 4;
   context.fillStyle = '#000000';
-  for (const shadow of shadows) {
+  for (const shadow of layers) {
     context.shadowColor = shadow.color;
     context.shadowBlur = shadow.blur * unit;
     context.shadowOffsetX = away;

@@ -44,6 +44,10 @@ test('a web screenshot sits in the browser window on the wallpaper, without resa
   const center = await pixel(output, frame.x + frame.width / 2, frame.y + frame.height / 2);
   assert.deepEqual([center.width, center.height, center.rgb], [width, height, [255, 0, 0]]);
   assert.notDeepEqual((await pixel(output, 2, 2)).rgb, [255, 0, 0]);
+  // A light shadow under the window, gone before the edge of the image.
+  const under = y => pixel(output, frame.x + frame.width / 2, frame.y + frame.height + y).then(({ rgb }) => rgb[1]);
+  const [edge, clear] = [await under(4), await under(150)];
+  assert.ok(edge < clear * 0.88 && edge > clear * 0.7, `edge ${edge}, clear ${clear}`);
   await assert.rejects(frameImage(input, { window: 'device' }), /needs --device/);
   await assert.rejects(frameImage(input, { scale: 4 }), /--scale/);
 }));
