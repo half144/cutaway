@@ -32,10 +32,10 @@ export function stillGeometry({ viewport, scale, device }, { padding, window: wi
 // Tighter than a video's 0.09: a still has no zoom to leave room for.
 const framePadding = 0.05;
 // A light shadow that gathers under the window, as Screen Studio's stills do (1080p pixels, like the
-// video's): about 20% darker at the bottom edge, gone within 48 page pixels, faint at the sides.
+// video's): about 30% darker at the bottom edge, gone within 48 page pixels, lighter at the sides.
 const windowShadows = [
-  { offset: 16, blur: 30, color: '#00000080' },
-  { offset: 2, blur: 6, color: '#00000033' },
+  { offset: 18, blur: 32, color: '#00000099' },
+  { offset: 2, blur: 5, color: '#00000026' },
 ];
 
 // Frames a screenshot of the viewport like the video: a browser window on the wallpaper, or the phone.

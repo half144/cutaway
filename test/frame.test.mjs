@@ -47,7 +47,7 @@ test('a web screenshot sits in the browser window on the wallpaper, without resa
   // A light shadow under the window, gone before the edge of the image.
   const under = y => pixel(output, frame.x + frame.width / 2, frame.y + frame.height + y).then(({ rgb }) => rgb[1]);
   const [edge, clear] = [await under(4), await under(150)];
-  assert.ok(edge < clear * 0.88 && edge > clear * 0.7, `edge ${edge}, clear ${clear}`);
+  assert.ok(edge < clear * 0.82 && edge > clear * 0.6, `edge ${edge}, clear ${clear}`);
   await assert.rejects(frameImage(input, { window: 'device' }), /needs --device/);
   await assert.rejects(frameImage(input, { scale: 4 }), /--scale/);
 }));
