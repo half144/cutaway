@@ -69,6 +69,7 @@ export async function record(planPath, directory, { headed = false, storageState
     const { defaultBrowserType, viewport, deviceScaleFactor, ...phone } = plan.device ? devices[plan.device.name] : {};
     const context = await browser.newContext({
       ...phone, screen: plan.device?.screen, viewport: plan.viewport, deviceScaleFactor: plan.captureScale, storageState,
+      colorScheme: plan.colorScheme,
     });
     const page = await context.newPage();
     page.setDefaultTimeout(plan.timeout ?? 10000);

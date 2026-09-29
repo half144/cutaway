@@ -90,6 +90,12 @@ test('an upload is a click whose file chooser receives the plan files', async ()
   assert.deepEqual(received, ['cover.jpg']);
 });
 
+test('colorScheme is light or dark', () => {
+  const plan = { url: 'https://example.com', steps: [{ action: 'wait' }] };
+  assert.equal(validatePlan({ ...plan, colorScheme: 'dark' }).colorScheme, 'dark');
+  for (const colorScheme of ['night', true, '']) assert.throws(() => validatePlan({ ...plan, colorScheme }), /colorScheme/);
+});
+
 test('hide takes a non-empty list of selectors', () => {
   const plan = { url: 'https://example.com', steps: [{ action: 'wait' }] };
   assert.deepEqual(validatePlan({ ...plan, hide: ['nextjs-portal'] }).hide, ['nextjs-portal']);
