@@ -55,6 +55,9 @@ export function validatePlan(plan) {
     || !plan.hide.every(selector => typeof selector === 'string' && selector.trim()))) {
     throw new Error('hide must be a non-empty array of CSS selectors.');
   }
+  if (plan.colorScheme !== undefined && !['light', 'dark'].includes(plan.colorScheme)) {
+    throw new Error('colorScheme must be "light" or "dark".');
+  }
   const steps = plan.steps.map(step => aliases[step?.action] ? { ...step, action: aliases[step.action] } : step);
   for (const [index, step] of steps.entries()) {
     const fail = message => { throw new Error(`Step ${index + 1}: ${message}`); };

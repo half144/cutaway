@@ -21,16 +21,29 @@ Animated zoom, a human cursor, motion blur and a macOS-style window, from a JSON
 
 ## ✨ See it
 
-https://github.com/user-attachments/assets/3bd9af5a-d173-48a1-bcfd-838a1d5c9f93
+https://github.com/user-attachments/assets/3d1e40e9-f6c2-49f3-bc12-51adb444362e
 
-25 s, 1080p, 60 fps, unedited, from [`examples/web-dashboard.json`](examples/web-dashboard.json) on the [shadcn/ui example dashboard](https://ui.shadcn.com/view/new-york-v4/dashboard-01). Zoom, cursor, pacing and background are the defaults.
+25 s, 1080p, 60 fps, unedited, from [`examples/web-dashboard.json`](examples/web-dashboard.json) on the [shadcn/ui example dashboard](https://ui.shadcn.com/view/new-york-v4/dashboard-01). Zoom, cursor, pacing, the Safari window and background are the defaults.
+
+<details>
+<summary><b>🌙 In dark mode</b></summary>
+
+https://github.com/user-attachments/assets/cb7a1724-a05c-490d-8715-fcab227f9b8b
+
+25 s, 1080p, 60 fps, unedited, from [`examples/web-dashboard-dark.json`](examples/web-dashboard-dark.json): the same plan with `"colorScheme": "dark"`. The window follows the page.
+
+</details>
 
 <details>
 <summary><b>📱 The same edits on an iPhone 15 Pro</b></summary>
 
-https://github.com/user-attachments/assets/2c80b028-ebcc-45d9-8aaf-a642d342df32
+https://github.com/user-attachments/assets/7457e723-e6a7-431a-beb7-f1f46e12429d
 
-30 s, 1080×1920, 60 fps, unedited, from [`examples/web-dashboard-mobile.json`](examples/web-dashboard-mobile.json): touch indicators, drags, the iOS keyboard and the phone frame are the defaults for a phone `device`.
+29 s, 1080×1920, 60 fps, unedited, from [`examples/web-dashboard-mobile.json`](examples/web-dashboard-mobile.json): touch indicators, drags, the iOS keyboard and the phone frame are the defaults for a phone `device`.
+
+In dark mode, from [`examples/web-dashboard-mobile-dark.json`](examples/web-dashboard-mobile-dark.json):
+
+https://github.com/user-attachments/assets/37528bf4-4422-4f7c-8679-c77df053f5fa
 
 </details>
 
@@ -143,6 +156,7 @@ Selectors are [Playwright locators](https://playwright.dev/docs/other-locators):
 | `captureScale` | `2` (`3` on phones) | Source pixel density; `3` for 4K exports |
 | `hide` | none | CSS selectors removed from every frame, such as the Next.js dev badge |
 | `timeout` | `10000` | Action time limit in milliseconds (up to 120000) |
+| `colorScheme` | `light` | `dark` opens the page in dark mode, for apps that follow the system appearance |
 
 Ambiguous selectors, missing elements and unmet expectations stop the recording, and export refuses incomplete sessions. For an app behind a login, pass `--storage-state /path/session.auth.json` with a saved Playwright state; `--headed` shows the browser.
 

@@ -1,0 +1,17 @@
+{
+  "url": "https://ui.shadcn.com/view/new-york-v4/dashboard-01",
+  "timeout": 15000,
+  "colorScheme": "dark",
+  "steps": [
+    { "action": "type", "selector": "[id=\"1-target\"]", "text": "24" },
+    { "action": "press", "key": "Enter", "expect": "[data-sonner-toast]" },
+    { "action": "click", "selector": "[id=\"8-reviewer\"]" },
+    { "action": "click", "selector": "role=option[name=\"Eddie Lake\"]" },
+    { "action": "click", "selector": "role=button[name=\"Innovation and Advantages\"]", "expect": "role=dialog" },
+    { "action": "type", "selector": "#header", "text": "Innovation (final)" },
+    { "action": "type", "selector": "#limit", "text": "20" },
+    { "action": "click", "selector": "role=button[name=\"Done\"]" },
+    { "action": "click", "selector": "role=radio[name=\"Last 30 days\"]" },
+    { "action": "click", "selector": "role=radio[name=\"Last 7 days\"]" }
+  ]
+}
