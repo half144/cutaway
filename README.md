@@ -38,7 +38,7 @@ https://github.com/user-attachments/assets/2c80b028-ebcc-45d9-8aaf-a642d342df32
 
 - **A camera that follows the action.** Screen Studio-style zoom on typing, menus and small results; the overview for anything that fills the screen.
 - **A cursor that moves like a person.** Arcs, Fitts' law timing, varied pauses and a click that presses in.
-- **A finished scene.** Wallpaper, browser window with traffic lights, shadow, motion blur and a shortcut pill.
+- **A finished scene.** Wallpaper, a Safari-style browser window, shadow, motion blur and a shortcut pill.
 - **Honest timing.** Dead time is sped up; clicks, typing and results play at real speed.
 - **Phones too.** Touch input, a drawn device, status bar and on-screen keyboard.
 - **Stills too.** `frame` gives any screenshot the same window or phone, for evidence that needs no video. See [Screenshots](#-screenshots).

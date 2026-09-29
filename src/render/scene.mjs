@@ -4,7 +4,8 @@ import { drawScreen } from './device.mjs';
 import { drawToolbar } from './toolbar.mjs';
 import { drawTouches, touchRadius } from './touch.mjs';
 
-const windowRadius = 12;
+// macOS Tahoe window corners, measured on Safari.
+const windowRadius = 16;
 
 export function createFrame(width, height, viewport, padding, toolbar = 0) {
   const ratio = Math.min(width * (1 - padding * 2) / viewport.width,
